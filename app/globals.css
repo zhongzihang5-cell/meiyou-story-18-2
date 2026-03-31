@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --pk: #F06292;
+  --pk-d: #E91E63;
+  --pk-l: #FCE4EC;
+  --pu: #9C6FD6;
+  --pu-d: #7B3FD4;
+  --pu-l: #EDE7F6;
+  --story-bg: #FBF7FF;
+  --story-border: #F0E8FF;
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+
+body {
+  background: #C8B4E8;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+/* Mobile phone shell */
+.phone-shell {
+  width: 390px;
+  min-height: 844px;
+  background: var(--story-bg);
+  border-radius: 44px;
+  overflow: hidden;
+  box-shadow:
+    0 40px 100px rgba(80, 30, 140, 0.32),
+    0 0 0 10px rgba(255, 255, 255, 0.16),
+    0 0 0 11px rgba(150, 110, 210, 0.22);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Gradient text */
+.text-gradient {
+  background: linear-gradient(135deg, var(--pu-d), var(--pk-d));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Hide scrollbar */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Story card hover */
+.story-card { transition: transform 0.15s ease; }
+.story-card:active { transform: scale(0.97); }
+
+/* Pulse animation for recording */
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+.pulse-ring {
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+/* Float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-float { animation: float 3s ease-in-out infinite; }
+
+/* Progress bar */
+@keyframes progress-fill {
+  from { width: 0%; }
+}
