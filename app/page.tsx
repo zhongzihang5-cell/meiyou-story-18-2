@@ -10,6 +10,7 @@ import { getFavorites, subscribe } from '@/lib/favorites'
 import type { FavoriteItem } from '@/lib/favorites'
 import { collectionHref } from '@/lib/collectionNav'
 import { buildVoiceStoryPlayerUrl } from '@/lib/voicePlayerLink'
+import { setLastAgeLevel } from '@/lib/searchAgeContext'
 
 // 每个月龄对应的爸妈原声引导故事（与下面列表故事不重复）
 const VOICE_STORIES: Record<string, {
@@ -103,8 +104,12 @@ export default function HomePage() {
     return unsub
   }, [])
 
+  useEffect(() => {
+    setLastAgeLevel(ageKey)
+  }, [ageKey])
+
   return (
-    <div className="phone-shell" style={{ paddingBottom: 80 }}>
+    <div className="phone-shell bg-[#FBF7FF]" style={{ paddingBottom: 80 }}>
       {/* Status */}
       <div className="h-12 px-7 flex justify-between items-center pt-3 flex-shrink-0">
         <span className="text-[15px] font-bold text-[#1A0A2E]">21:09</span>
@@ -112,8 +117,8 @@ export default function HomePage() {
       </div>
 
       {/* Search */}
-      <div className="px-4 pb-0 flex gap-2 items-center flex-shrink-0">
-        <div className="flex-1 h-10 bg-[#F0EAF8] rounded-full flex items-center gap-2 px-4 text-[#B0A0C8] text-sm">
+      <div className="px-4 pb-0 flex gap-2 items-center flex-shrink-0 select-none touch-manipulation active:bg-[#FBF7FF]" onClick={() => router.push(`/search?from=featured&age=${encodeURIComponent(ageKey)}`)} style={{ cursor: 'pointer' }}>
+        <div className="flex-1 h-10 bg-[#F0EAF8] rounded-full flex items-center gap-2 px-4 text-[#B0A0C8] text-sm pointer-events-none">
           <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>

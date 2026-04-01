@@ -1,7 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { setLastAgeLevel } from '@/lib/searchAgeContext'
 
 const AGE_TABS = [
   { value: 'L1', label: '0-6月' },
@@ -196,14 +197,18 @@ export default function AnimationPage() {
   const router = useRouter()
   const content = CONTENT_BY_AGE[ageFilter] ?? CONTENT_BY_AGE['L1']
 
+  useEffect(() => {
+    setLastAgeLevel(ageFilter)
+  }, [ageFilter])
+
   return (
     <div className="phone-shell bg-[#FBF7FF]">
       <div className="h-12 px-7 flex justify-between items-center pt-3 flex-shrink-0">
         <span className="text-[15px] font-bold text-[#1A0A2E]">17:55</span>
         <span className="text-sm">📶🔋</span>
       </div>
-      <div className="px-4 pb-0 flex-shrink-0">
-        <div className="flex-1 h-10 bg-[#F0EAF8] rounded-full flex items-center gap-2 px-4 text-[#B0A0C8] text-sm">
+      <div className="px-4 pb-0 flex-shrink-0 select-none touch-manipulation active:bg-[#FBF7FF]" onClick={() => router.push(`/search?from=animation&age=${encodeURIComponent(ageFilter)}`)} style={{ cursor: 'pointer' }}>
+        <div className="flex-1 h-10 bg-[#F0EAF8] rounded-full flex items-center gap-2 px-4 text-[#B0A0C8] text-sm pointer-events-none">
           <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           搜索动画
         </div>
