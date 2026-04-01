@@ -51,6 +51,63 @@ const IS_MEMBER = false
 
 const STEPS_BAR = ['role', 'prepare', 'record'] as const
 
+function PastSentence({ index, sentence, onReRecord }: {
+  index: number
+  sentence: string
+  onReRecord: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [playing, setPlaying] = useState(false)
+
+  return (
+    <div className="rounded-[12px] border bg-white overflow-hidden"
+      style={{ borderColor: expanded ? '#4CAF50' : '#F0E8FF' }}>
+      <button type="button" onClick={() => setExpanded(e => !e)}
+        className="w-full px-3 py-2.5 flex items-center justify-between text-left">
+        <div className="text-[12px] text-[#888] truncate flex-1 mr-2">
+          第{index + 1}句 &nbsp; {sentence.slice(0, 14)}...
+        </div>
+        <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ background: '#4CAF50' }}>
+          <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
+            <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.8"/>
+          </svg>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-3 pb-3">
+          <div className="text-[13px] text-[#1A0A2E] leading-relaxed mb-3">{sentence}</div>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setPlaying(p => !p)}
+              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: '#4CAF50' }}>
+              {playing ? (
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="white">
+                  <rect x="2" y="2" width="3" height="8"/><rect x="7" y="2" width="3" height="8"/>
+                </svg>
+              ) : (
+                <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
+                  <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.8"/>
+                </svg>
+              )}
+            </button>
+            {playing && (
+              <div className="flex-1 h-1.5 bg-[#F0E8FF] rounded-full">
+                <div className="h-full w-[40%] bg-[#4CAF50] rounded-full"/>
+              </div>
+            )}
+            <button type="button" onClick={onReRecord}
+              className="text-[11px] text-[#E91E63] border border-[#F48FB1] bg-[#FFF0F5] rounded-full px-3 py-1">
+              重录
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function VoiceClonePage() {
   const router = useRouter()
   const [step, setStep] = useState<Step>('role')
@@ -61,12 +118,9 @@ export default function VoiceClonePage() {
   const [recordedCount, setRecordedCount] = useState(0)
   const [currentSentence, setCurrentSentence] = useState(0)
   const [progress, setProgress] = useState(0)
+  const [justRecorded, setJustRecorded] = useState(false)
+  const [playingIndex, setPlayingIndex] = useState(-1)
   const recordIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const currentSentenceRef = useRef(0)
-
-  useEffect(() => {
-    currentSentenceRef.current = currentSentence
-  }, [currentSentence])
 
   useEffect(() => () => {
     if (recordIntervalRef.current) {
@@ -83,6 +137,8 @@ export default function VoiceClonePage() {
   }
 
   const handleStartRecord = () => {
+    setJustRecorded(false)
+    setPlayingIndex(-1)
     setStep('record')
   }
 
@@ -93,6 +149,7 @@ export default function VoiceClonePage() {
       recordIntervalRef.current = null
     }
     setRecording(true)
+    setJustRecorded(false)
     let p = 0
     recordIntervalRef.current = setInterval(() => {
       p += 5
@@ -104,17 +161,22 @@ export default function VoiceClonePage() {
         }
         setRecording(false)
         setProgress(0)
-        const idx = currentSentenceRef.current
-        if (idx < SENTENCES.length - 1) {
-          setCurrentSentence(idx + 1)
-          setRecordedCount(c => c + 1)
-        } else {
-          setRecordedCount(SENTENCES.length)
-          setStep('processing')
-          setTimeout(() => setStep('done'), 3000)
-        }
+        setJustRecorded(true)
       }
     }, 80)
+  }
+
+  const handleNext = () => {
+    setJustRecorded(false)
+    setPlayingIndex(-1)
+    if (currentSentence < SENTENCES.length - 1) {
+      setRecordedCount(c => c + 1)
+      setCurrentSentence(c => c + 1)
+    } else {
+      setRecordedCount(SENTENCES.length)
+      setStep('processing')
+      setTimeout(() => setStep('done'), 3000)
+    }
   }
 
   const handleBack = () => {
@@ -142,11 +204,12 @@ export default function VoiceClonePage() {
     setSelectedRole(null)
     setRecordedCount(0)
     setCurrentSentence(0)
-    currentSentenceRef.current = 0
     setPrepareUnlocked(false)
     setShowMore(false)
     setRecording(false)
     setProgress(0)
+    setJustRecorded(false)
+    setPlayingIndex(-1)
     if (recordIntervalRef.current) {
       clearInterval(recordIntervalRef.current)
       recordIntervalRef.current = null
@@ -345,52 +408,112 @@ export default function VoiceClonePage() {
         )}
 
         {step === 'record' && (
-          <div className="flex flex-col items-center">
-            <div className="flex gap-1.5 mb-6 w-full">
+          <div className="flex flex-col">
+            <div className="flex gap-1.5 mb-4">
               {SENTENCES.map((_, i) => (
                 <div key={i} className="flex-1 h-1.5 rounded-full"
                   style={{
-                    background:
-                      i < recordedCount ? '#E91E63' : i === recordedCount ? '#F48FB1' : '#F0E8FF',
+                    background: i < recordedCount ? '#4CAF50' :
+                      i === recordedCount ? '#E91E63' : '#F0E8FF',
                   }}/>
               ))}
             </div>
 
-            <div className="w-full bg-white rounded-[16px] border border-[#F0E8FF] p-5 mb-6 text-center">
-              <div className="text-[11px] text-[#B0A0C8] mb-3">请朗读以下内容</div>
-              <div className="text-[16px] font-semibold text-[#1A0A2E] leading-relaxed">
+            <div className="flex flex-col gap-2 mb-3">
+              {SENTENCES.slice(0, recordedCount).map((sentence, i) => (
+                <PastSentence
+                  key={i}
+                  index={i}
+                  sentence={sentence}
+                  onReRecord={() => {
+                    if (recordIntervalRef.current) {
+                      clearInterval(recordIntervalRef.current)
+                      recordIntervalRef.current = null
+                    }
+                    setRecording(false)
+                    setProgress(0)
+                    setCurrentSentence(i)
+                    setRecordedCount(i)
+                    setJustRecorded(false)
+                    setPlayingIndex(-1)
+                  }}
+                />
+              ))}
+            </div>
+
+            <div className="rounded-[14px] border-2 border-[#E91E63] bg-[#FFF0F5] p-4 mb-3">
+              <div className="text-[11px] text-[#E91E63] font-bold mb-2">
+                第{currentSentence + 1}句 · {recording ? '录制中' : '点击麦克风开始'}
+              </div>
+              <div className="text-[14px] text-[#880E4F] leading-relaxed mb-3">
                 {SENTENCES[currentSentence]}
               </div>
-            </div>
 
-            <div className="relative mb-4">
               {recording && (
-                <div className="absolute inset-0 rounded-full animate-ping"
-                  style={{ background: 'rgba(233,30,99,0.2)', transform: 'scale(1.4)' }}/>
+                <div className="flex items-center gap-[2px] h-6 mb-3">
+                  {[6, 12, 18, 10, 16, 8, 14, 20, 12, 6, 4, 4].map((h, i) => (
+                    <div key={i} className="w-[2px] rounded-full"
+                      style={{ height: h, background: i < 9 ? '#E91E63' : '#F48FB1' }}/>
+                  ))}
+                </div>
               )}
-              <button type="button" onClick={handleRecord}
-                disabled={recording}
-                className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg"
-                style={{ background: recording ? '#F48FB1' : 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
-                <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="white" strokeWidth="2" fill="none"/>
-                  <line x1="12" y1="19" x2="12" y2="23" stroke="white" strokeWidth="2"/>
-                  <line x1="8" y1="23" x2="16" y2="23" stroke="white" strokeWidth="2"/>
-                </svg>
-              </button>
+
+              {recording && (
+                <div className="w-full h-1.5 bg-[#F0E8FF] rounded-full overflow-hidden mb-3">
+                  <div className="h-full bg-[#E91E63] rounded-full transition-all"
+                    style={{ width: `${progress}%` }}/>
+                </div>
+              )}
+
+              {!justRecorded && (
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={handleRecord} disabled={recording}
+                    className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 shadow-md"
+                    style={{ background: recording ? '#F48FB1' : 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
+                    <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="white" strokeWidth="2" fill="none"/>
+                      <line x1="12" y1="19" x2="12" y2="23" stroke="white" strokeWidth="2"/>
+                      <line x1="8" y1="23" x2="16" y2="23" stroke="white" strokeWidth="2"/>
+                    </svg>
+                  </button>
+                  <div className="text-[12px] text-[#E91E63]">
+                    {recording ? '录制中，请朗读文字...' : '点击麦克风开始录制'}
+                  </div>
+                </div>
+              )}
+
+              {justRecorded && (
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => setPlayingIndex(playingIndex === currentSentence ? -1 : currentSentence)}
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: '#4CAF50' }}>
+                    {playingIndex === currentSentence ? (
+                      <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="white">
+                        <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" viewBox="0 0 12 12" fill="none">
+                        <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.8"/>
+                      </svg>
+                    )}
+                  </button>
+                  <button type="button" onClick={handleNext}
+                    className="flex-1 h-10 rounded-full text-white font-bold text-[13px]"
+                    style={{ background: 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
+                    {currentSentence < SENTENCES.length - 1 ? '下一句' : '完成录制'}
+                  </button>
+                </div>
+              )}
             </div>
 
-            {recording && (
-              <div className="w-full h-1.5 bg-[#F0E8FF] rounded-full overflow-hidden mb-3">
-                <div className="h-full bg-[#E91E63] rounded-full transition-all"
-                  style={{ width: `${progress}%` }}/>
+            {currentSentence < SENTENCES.length - 1 && !justRecorded && (
+              <div className="rounded-[12px] border border-[#F0E8FF] bg-white p-3 opacity-40">
+                <div className="text-[11px] text-[#B0A0C8]">
+                  第{currentSentence + 2}句 &nbsp; {SENTENCES[currentSentence + 1].slice(0, 16)}...
+                </div>
               </div>
             )}
-
-            <div className="text-[12px] text-[#B0A0C8]">
-              {recording ? '录制中，请朗读文字...' : '点击麦克风开始录制'}
-            </div>
           </div>
         )}
 
