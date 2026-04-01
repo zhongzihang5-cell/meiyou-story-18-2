@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toggleFavorite, isFavorited, subscribe } from '@/lib/favorites'
 import { pathAfterCollectionBack, playerFromSuffix } from '@/lib/collectionNav'
+import { NURSERY_COLLECTIONS } from '@/lib/nurseryCollections'
 
 const COLLECTIONS: Record<string, {
   id: string, title: string, emoji: string, bg: string,
@@ -29,17 +30,6 @@ const COLLECTIONS: Record<string, {
       id: `ep-003-${i+1}`,
       title: name,
       duration_sec: 135 + i * 12,
-    }))
-  },
-  's1': {
-    id: 's1', title: '亲子运动歌', emoji: '🦁',
-    bg: 'linear-gradient(135deg,#7B2D8B,#E91E8C)',
-    desc: '活力满满的亲子律动儿歌，边唱边玩，促进宝宝运动发育。',
-    eps: 20, tag: '全龄 · 益智儿歌',
-    episodes: ['小手拍拍','跺跺脚','摇摇头','弯弯腰','跳起来','转一转','拍手歌','踢踢腿','伸懒腰','蹦蹦跳','小脚丫','动动手','甩甩手','扭一扭','点头歌','小手指','蹲起来','前进歌','体操时间','运动快乐'].map((name, i) => ({
-      id: `ep-s1-${i+1}`,
-      title: name,
-      duration_sec: 90 + i * 8,
     }))
   },
   'a1': {
@@ -217,42 +207,6 @@ const COLLECTIONS: Record<string, {
       id: `ep-c4-${i + 1}`, title: `形状大探索 · 第${i + 1}集`, duration_sec: 118 + i * 12,
     })),
   },
-  l1: {
-    id: 'l1', title: '小熊学刷牙', emoji: '🐻',
-    bg: 'linear-gradient(135deg,#E8F5E9,#4CAF50)',
-    desc: '跟着小熊一起刷牙，让宝宝爱上清洁牙齿的好习惯。',
-    eps: 8, tag: '全龄 · 生活发展',
-    episodes: Array.from({ length: 8 }, (_, i) => ({
-      id: `ep-l1-${i + 1}`, title: `小熊学刷牙 · 第${i + 1}集`, duration_sec: 140 + i * 25,
-    })),
-  },
-  l2: {
-    id: 'l2', title: '我会自己吃饭', emoji: '🍚',
-    bg: 'linear-gradient(135deg,#FFF3E0,#FF9800)',
-    desc: '自己拿勺、不挑食，生活自理从好好吃饭开始。',
-    eps: 10, tag: '全龄 · 生活发展',
-    episodes: Array.from({ length: 10 }, (_, i) => ({
-      id: `ep-l2-${i + 1}`, title: `我会自己吃饭 · 第${i + 1}集`, duration_sec: 135 + i * 20,
-    })),
-  },
-  l3: {
-    id: 'l3', title: '穿衣服真有趣', emoji: '👕',
-    bg: 'linear-gradient(135deg,#FCE4EC,#E91E63)',
-    desc: '分清前后、学会扣扣子，穿衣服也可以很好玩。',
-    eps: 6, tag: '全龄 · 生活发展',
-    episodes: Array.from({ length: 6 }, (_, i) => ({
-      id: `ep-l3-${i + 1}`, title: `穿衣服真有趣 · 第${i + 1}集`, duration_sec: 128 + i * 22,
-    })),
-  },
-  l4: {
-    id: 'l4', title: '宝宝爱整理', emoji: '🧸',
-    bg: 'linear-gradient(135deg,#E3F2FD,#1565C0)',
-    desc: '玩具回家、书本归位，培养收纳意识与责任感。',
-    eps: 8, tag: '全龄 · 生活发展',
-    episodes: Array.from({ length: 8 }, (_, i) => ({
-      id: `ep-l4-${i + 1}`, title: `宝宝爱整理 · 第${i + 1}集`, duration_sec: 132 + i * 18,
-    })),
-  },
   e1: {
     id: 'e1', title: '小兔子交朋友', emoji: '🐰',
     bg: 'linear-gradient(135deg,#EDE7F6,#7B3FD4)',
@@ -289,6 +243,7 @@ const COLLECTIONS: Record<string, {
       id: `ep-e4-${i + 1}`, title: `我爱我的家 · 第${i + 1}集`, duration_sec: 142 + i * 14,
     })),
   },
+  ...NURSERY_COLLECTIONS,
 }
 
 const DEFAULT_COLLECTION = COLLECTIONS['001']

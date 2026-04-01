@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
 type Step = 'role' | 'prepare' | 'record' | 'processing' | 'done'
@@ -46,63 +46,572 @@ const SENTENCES = [
   '宝宝，要像小兔子一样善良，好不好？',
 ]
 
-/** mock：false = 免费用户（先见会员引导，点「立即录制」进入正式准备页）；true = 直接准备页 */
 const IS_MEMBER = false
 
-const STEPS_BAR = ['role', 'prepare', 'record'] as const
+function pickRecorderMime(): string | undefined {
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
+  for (const t of candidates) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t
+  }
+  return undefined
+}
 
-function PastSentence({ index, sentence, onReRecord }: {
-  index: number
-  sentence: string
-  onReRecord: () => void
+function RecordStep({
+  sentences,
+  roleLabel,
+  onComplete,
+}: {
+  sentences: string[]
+  roleLabel: string
+  onComplete: () => void
 }) {
-  const [expanded, setExpanded] = useState(false)
-  const [playing, setPlaying] = useState(false)
+  const [recordedBlobs, setRecordedBlobs] = useState<Record<number, string>>({})
+  const [recordingIndex, setRecordingIndex] = useState<number | null>(null)
+  const [playingIndex, setPlayingIndex] = useState<number | null>(null)
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
+  /** 当前进度句下标：该句待录或刚录完待点「下一句」 */
+  const [recordedCount, setRecordedCount] = useState(0)
+  const [audioLevels, setAudioLevels] = useState<number[]>(() => Array.from({ length: 13 }, () => 4))
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const animFrameRef = useRef<number | null>(null)
+  const audioRefs = useRef<Record<number, HTMLAudioElement>>({})
+  const recordedBlobsRef = useRef(recordedBlobs)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const mountedRef = useRef(true)
+  const recordingIndexRef = useRef<number | null>(null)
+  const sentenceCardRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  recordedBlobsRef.current = recordedBlobs
+  recordingIndexRef.current = recordingIndex
+
+  const stopAnalyserLoop = useCallback(() => {
+    if (animFrameRef.current != null) {
+      cancelAnimationFrame(animFrameRef.current)
+      animFrameRef.current = null
+    }
+  }, [])
+
+  const teardownAudioGraph = useCallback(() => {
+    stopAnalyserLoop()
+    analyserRef.current = null
+    const ctx = audioContextRef.current
+    audioContextRef.current = null
+    if (ctx && ctx.state !== 'closed') {
+      ctx.close().catch(() => {})
+    }
+  }, [stopAnalyserLoop])
+
+  const allDone = sentences.length > 0 && sentences.every((_, i) => !!recordedBlobs[i])
+  const subtitleSentenceNum = recordingIndex !== null ? recordingIndex + 1 : recordedCount + 1
+
+  useEffect(() => {
+    if (recordingIndex === null) return
+    const el = sentenceCardRefs.current[recordingIndex]
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [recordingIndex])
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      stopAnalyserLoop()
+      teardownAudioGraph()
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop()
+        } catch {
+          /* ignore */
+        }
+      }
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+      mediaRecorderRef.current = null
+      Object.values(audioRefs.current).forEach(a => {
+        try {
+          a.pause()
+          a.src = ''
+        } catch {
+          /* ignore */
+        }
+      })
+      audioRefs.current = {}
+      Object.values(recordedBlobsRef.current).forEach(url => URL.revokeObjectURL(url))
+    }
+  }, [stopAnalyserLoop, teardownAudioGraph])
+
+  const startRecording = async (index: number) => {
+    if (recordingIndexRef.current !== null) return
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+
+      const ctx = new AudioContext()
+      audioContextRef.current = ctx
+      const source = ctx.createMediaStreamSource(stream)
+      const analyser = ctx.createAnalyser()
+      analyser.fftSize = 32
+      source.connect(analyser)
+      analyserRef.current = analyser
+
+      const animate = () => {
+        const a = analyserRef.current
+        if (!a) return
+        const data = new Uint8Array(a.frequencyBinCount)
+        a.getByteFrequencyData(data)
+        setAudioLevels(Array.from(data).slice(0, 13).map(v => Math.max(4, v / 6)))
+        animFrameRef.current = requestAnimationFrame(animate)
+      }
+      animate()
+
+      chunksRef.current = []
+      const mime = pickRecorderMime()
+      const mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
+      mr.ondataavailable = e => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
+      }
+      mr.onstop = () => {
+        stream.getTracks().forEach(t => t.stop())
+        streamRef.current = null
+        teardownAudioGraph()
+        setAudioLevels(Array.from({ length: 13 }, () => 4))
+        const type = chunksRef.current[0]?.type || mr.mimeType || 'audio/webm'
+        const blob = new Blob(chunksRef.current, { type })
+        const url = URL.createObjectURL(blob)
+        const idx = recordingIndexRef.current
+        if (!mountedRef.current) {
+          URL.revokeObjectURL(url)
+          mediaRecorderRef.current = null
+          return
+        }
+        if (idx !== null) {
+          setRecordedBlobs(prev => ({ ...prev, [idx]: url }))
+          setExpandedIndex(idx)
+        } else {
+          URL.revokeObjectURL(url)
+        }
+        setRecordingIndex(null)
+        mediaRecorderRef.current = null
+      }
+      mr.start()
+      mediaRecorderRef.current = mr
+      setRecordingIndex(index)
+    } catch {
+      alert('请允许麦克风权限后再录制')
+    }
+  }
+
+  const stopRecording = () => {
+    const mr = mediaRecorderRef.current
+    if (mr && mr.state !== 'inactive') mr.stop()
+  }
+
+  const playAudio = (index: number) => {
+    const existing = audioRefs.current[index]
+    if (playingIndex === index && existing && !existing.paused) {
+      existing.pause()
+      existing.currentTime = 0
+      setPlayingIndex(null)
+      return
+    }
+    Object.values(audioRefs.current).forEach(a => {
+      try {
+        a.pause()
+        a.currentTime = 0
+      } catch {
+        /* ignore */
+      }
+    })
+    const url = recordedBlobs[index]
+    if (!url) return
+    const audio = new Audio(url)
+    audioRefs.current[index] = audio
+    audio.onended = () => {
+      setPlayingIndex(cur => (cur === index ? null : cur))
+    }
+    audio.play().catch(() => setPlayingIndex(null))
+    setPlayingIndex(index)
+  }
+
+  const reRecord = (index: number) => {
+    const url = recordedBlobs[index]
+    if (url) URL.revokeObjectURL(url)
+    setRecordedBlobs(prev => {
+      const n = { ...prev }
+      delete n[index]
+      return n
+    })
+    const a = audioRefs.current[index]
+    if (a) {
+      try {
+        a.pause()
+        a.src = ''
+      } catch {
+        /* ignore */
+      }
+      delete audioRefs.current[index]
+    }
+    if (playingIndex === index) setPlayingIndex(null)
+    setRecordedCount(index)
+    setExpandedIndex(null)
+  }
+
+  const waveHeights = [7, 13, 22, 31, 25, 37, 29, 35, 27, 33, 21, 15, 8]
+
+  const goNextSentence = () => {
+    setRecordedCount(c => (c < sentences.length - 1 ? c + 1 : c))
+    setExpandedIndex(null)
+  }
 
   return (
-    <div className="rounded-[12px] border bg-white overflow-hidden"
-      style={{ borderColor: expanded ? '#4CAF50' : '#F0E8FF' }}>
-      <button type="button" onClick={() => setExpanded(e => !e)}
-        className="w-full px-3 py-2.5 flex items-center justify-between text-left">
-        <div className="text-[12px] text-[#888] truncate flex-1 mr-2">
-          第{index + 1}句 &nbsp; {sentence.slice(0, 14)}...
-        </div>
-        <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ background: '#4CAF50' }}>
-          <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
-            <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.8"/>
-          </svg>
-        </div>
-      </button>
+    <div className="min-h-full pb-8">
+      <div className="text-[13px] text-[#B0A0C8] text-center mb-4">
+        {roleLabel} · 第{subtitleSentenceNum}句 / 共{sentences.length}句
+      </div>
 
-      {expanded && (
-        <div className="px-3 pb-3">
-          <div className="text-[13px] text-[#1A0A2E] leading-relaxed mb-3">{sentence}</div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setPlaying(p => !p)}
-              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: '#4CAF50' }}>
-              {playing ? (
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="white">
-                  <rect x="2" y="2" width="3" height="8"/><rect x="7" y="2" width="3" height="8"/>
-                </svg>
-              ) : (
-                <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
-                  <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.8"/>
-                </svg>
-              )}
-            </button>
-            {playing && (
-              <div className="flex-1 h-1.5 bg-[#F0E8FF] rounded-full">
-                <div className="h-full w-[40%] bg-[#4CAF50] rounded-full"/>
+      <div style={{ display: 'flex', gap: 3, padding: '4px 0 18px' }}>
+        {sentences.map((_, i) => (
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              height: 3,
+              borderRadius: 2,
+              background: recordedBlobs[i] ? '#4CAF50' : recordingIndex === i ? '#E91E63' : '#E8DCFF',
+            }}
+          />
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {sentences.map((sentence, i) => {
+          const isDone = !!recordedBlobs[i]
+          const isRecording = recordingIndex === i
+          const isExpanded = expandedIndex === i
+          const isPlaying = playingIndex === i
+
+          if (isRecording) {
+            return (
+              <div
+                key={i}
+                ref={el => {
+                  sentenceCardRefs.current[i] = el
+                }}
+                style={{
+                  background: 'white',
+                  border: '2px solid #E91E63',
+                  borderRadius: 22,
+                  padding: '22px 20px',
+                  boxShadow: '0 6px 24px rgba(233,30,99,0.13)',
+                }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#E91E63' }} />
+                    <span style={{ fontSize: 12, color: '#E91E63', fontWeight: 600 }}>第 {i + 1} 句</span>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: '#C8A0C0',
+                      background: '#FFF0F7',
+                      padding: '2px 8px',
+                      borderRadius: 10,
+                    }}>
+                    录制中
+                  </span>
+                </div>
+                <div style={{ fontSize: 15, color: '#1A0A2E', lineHeight: 1.75, marginBottom: 20, fontWeight: 500 }}>{sentence}</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3.5, height: 38, marginBottom: 22 }}>
+                  {waveHeights.map((h, j) => (
+                    <div
+                      key={j}
+                      style={{
+                        width: 3,
+                        height: Math.min(audioLevels[j] ?? h, 38),
+                        borderRadius: 2,
+                        background: j < 3 || j > 9 ? '#F48FB1' : '#E91E63',
+                        transition: 'height 0.08s',
+                      }}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={stopRecording}
+                  style={{
+                    width: 66,
+                    height: 66,
+                    borderRadius: '50%',
+                    background: 'white',
+                    border: '1.5px solid #F3E0F7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto',
+                    boxShadow: '0 3px 14px rgba(233,30,99,0.08)',
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}>
+                  <div
+                    style={{
+                      width: 21,
+                      height: 21,
+                      borderRadius: 6,
+                      background: 'linear-gradient(135deg,#7B3FD4,#E91E63)',
+                      boxShadow: '0 2px 8px rgba(233,30,99,0.3)',
+                    }}
+                  />
+                </button>
               </div>
-            )}
-            <button type="button" onClick={onReRecord}
-              className="text-[11px] text-[#E91E63] border border-[#F48FB1] bg-[#FFF0F5] rounded-full px-3 py-1">
-              重录
-            </button>
-          </div>
-        </div>
+            )
+          }
+
+          if (isDone && !isRecording) {
+            return (
+              <div
+                key={i}
+                role="button"
+                tabIndex={0}
+                onClick={() => setExpandedIndex(isExpanded ? null : i)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setExpandedIndex(isExpanded ? null : i)
+                  }
+                }}
+                style={{
+                  background: 'white',
+                  border: isExpanded ? '1px solid #9C6FD6' : '1px solid #EDE7F6',
+                  borderRadius: 16,
+                  padding: '13px 15px',
+                  cursor: 'pointer',
+                  boxShadow: isExpanded ? '0 2px 12px rgba(123,63,212,0.08)' : 'none',
+                }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: isExpanded ? 16 : 0 }}>
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: '#E8F5E9',
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                      <polyline points="2,6 5,9 10,3" stroke="#43A047" strokeWidth="2" />
+                    </svg>
+                  </div>
+                  <div
+                    style={{
+                      flex: 1,
+                      fontSize: 12.5,
+                      color: isExpanded ? '#1A0A2E' : '#AAA',
+                      lineHeight: 1.55,
+                      whiteSpace: isExpanded ? 'normal' : 'nowrap',
+                      overflow: isExpanded ? 'visible' : 'hidden',
+                      textOverflow: isExpanded ? 'clip' : 'ellipsis',
+                    }}>
+                    {sentence}
+                  </div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={isExpanded ? '#9C6FD6' : '#CCC'} strokeWidth="2">
+                    {isExpanded ? <polyline points="18 15 12 9 6 15" /> : <polyline points="6 9 12 15 18 9" />}
+                  </svg>
+                </div>
+                {isExpanded && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 18,
+                    }}>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation()
+                        playAudio(i)
+                      }}
+                      style={{
+                        width: 50,
+                        height: 50,
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg,#7B3FD4,#E91E63)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 14px rgba(123,63,212,0.28)',
+                        flexShrink: 0,
+                      }}>
+                      {isPlaying ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                          <rect x="6" y="4" width="4" height="16" />
+                          <rect x="14" y="4" width="4" height="16" />
+                        </svg>
+                      ) : (
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="white" style={{ marginLeft: 3 }}>
+                          <polygon points="5,3 19,12 5,21" />
+                        </svg>
+                      )}
+                    </button>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={e => {
+                        e.stopPropagation()
+                        reRecord(i)
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          reRecord(i)
+                        }
+                      }}
+                      style={{ fontSize: 13, color: '#E91E63', fontWeight: 500, cursor: 'pointer' }}>
+                      重录
+                    </span>
+                    {i < sentences.length - 1 && i === recordedCount && (
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation()
+                          goNextSentence()
+                        }}
+                        style={{
+                          fontSize: 13,
+                          color: 'white',
+                          background: 'linear-gradient(135deg,#7B3FD4,#E91E63)',
+                          border: 'none',
+                          borderRadius: 20,
+                          padding: '6px 16px',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                        }}>
+                        下一句
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          if (i === recordedCount && !isRecording) {
+            return (
+              <div
+                key={i}
+                ref={el => {
+                  sentenceCardRefs.current[i] = el
+                }}
+                style={{
+                  background: 'white',
+                  border: '2px solid #EDE7F6',
+                  borderRadius: 22,
+                  padding: '22px 20px',
+                }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <span style={{ fontSize: 12, color: '#7B3FD4', fontWeight: 600 }}>第 {i + 1} 句</span>
+                  <span style={{ fontSize: 11, color: '#B0A0C8' }}>待录制</span>
+                </div>
+                <div style={{ fontSize: 15, color: '#1A0A2E', lineHeight: 1.75, marginBottom: 20, fontWeight: 500 }}>{sentence}</div>
+                <button
+                  type="button"
+                  onClick={() => startRecording(i)}
+                  disabled={recordingIndex !== null}
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg,#7B3FD4,#E91E63)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto',
+                    cursor: recordingIndex !== null ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 16px rgba(123,63,212,0.3)',
+                    border: 'none',
+                    padding: 0,
+                    opacity: recordingIndex !== null ? 0.5 : 1,
+                  }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="white" strokeWidth="2" fill="none" />
+                    <line x1="12" y1="19" x2="12" y2="23" stroke="white" strokeWidth="2" />
+                    <line x1="8" y1="23" x2="16" y2="23" stroke="white" strokeWidth="2" />
+                  </svg>
+                </button>
+                <div style={{ textAlign: 'center', fontSize: 11, color: '#B0A0C8', marginTop: 10 }}>点击麦克风开始录制</div>
+              </div>
+            )
+          }
+
+          return (
+            <div
+              key={i}
+              style={{
+                background: 'white',
+                border: '1px solid #EDE7F6',
+                borderRadius: 16,
+                padding: '13px 15px',
+                opacity: 0.38,
+              }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
+                    background: '#F0E8FF',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <span style={{ fontSize: 11, color: '#C8B0E8', fontWeight: 600 }}>{i + 1}</span>
+                </div>
+                <div
+                  style={{
+                    flex: 1,
+                    fontSize: 12.5,
+                    color: '#C8B0E8',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
+                  {sentence}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {allDone && (
+        <button
+          type="button"
+          onClick={onComplete}
+          style={{
+            width: '100%',
+            height: 50,
+            borderRadius: 25,
+            background: 'linear-gradient(135deg,#7B3FD4,#E91E63)',
+            border: 'none',
+            color: 'white',
+            fontSize: 15,
+            fontWeight: 700,
+            marginTop: 20,
+            cursor: 'pointer',
+            boxShadow: '0 6px 20px rgba(123,63,212,0.3)',
+          }}>
+          完成录制
+        </button>
       )}
     </div>
   )
@@ -114,20 +623,6 @@ export default function VoiceClonePage() {
   const [selectedRole, setSelectedRole] = useState<Role>(null)
   const [showMore, setShowMore] = useState(false)
   const [prepareUnlocked, setPrepareUnlocked] = useState(false)
-  const [recording, setRecording] = useState(false)
-  const [recordedCount, setRecordedCount] = useState(0)
-  const [currentSentence, setCurrentSentence] = useState(0)
-  const [progress, setProgress] = useState(0)
-  const [justRecorded, setJustRecorded] = useState(false)
-  const [playingIndex, setPlayingIndex] = useState(-1)
-  const recordIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  useEffect(() => () => {
-    if (recordIntervalRef.current) {
-      clearInterval(recordIntervalRef.current)
-      recordIntervalRef.current = null
-    }
-  }, [])
 
   const showMemberPrepare = IS_MEMBER || prepareUnlocked
 
@@ -137,46 +632,7 @@ export default function VoiceClonePage() {
   }
 
   const handleStartRecord = () => {
-    setJustRecorded(false)
-    setPlayingIndex(-1)
     setStep('record')
-  }
-
-  const handleRecord = () => {
-    if (recording) return
-    if (recordIntervalRef.current) {
-      clearInterval(recordIntervalRef.current)
-      recordIntervalRef.current = null
-    }
-    setRecording(true)
-    setJustRecorded(false)
-    let p = 0
-    recordIntervalRef.current = setInterval(() => {
-      p += 5
-      setProgress(p)
-      if (p >= 100) {
-        if (recordIntervalRef.current) {
-          clearInterval(recordIntervalRef.current)
-          recordIntervalRef.current = null
-        }
-        setRecording(false)
-        setProgress(0)
-        setJustRecorded(true)
-      }
-    }, 80)
-  }
-
-  const handleNext = () => {
-    setJustRecorded(false)
-    setPlayingIndex(-1)
-    if (currentSentence < SENTENCES.length - 1) {
-      setRecordedCount(c => c + 1)
-      setCurrentSentence(c => c + 1)
-    } else {
-      setRecordedCount(SENTENCES.length)
-      setStep('processing')
-      setTimeout(() => setStep('done'), 3000)
-    }
   }
 
   const handleBack = () => {
@@ -202,25 +658,13 @@ export default function VoiceClonePage() {
   const resetFlow = () => {
     setStep('role')
     setSelectedRole(null)
-    setRecordedCount(0)
-    setCurrentSentence(0)
     setPrepareUnlocked(false)
     setShowMore(false)
-    setRecording(false)
-    setProgress(0)
-    setJustRecorded(false)
-    setPlayingIndex(-1)
-    if (recordIntervalRef.current) {
-      clearInterval(recordIntervalRef.current)
-      recordIntervalRef.current = null
-    }
   }
 
   const roleMeta = ALL_ROLES.find(r => r.id === selectedRole)
   const roleLabel = roleMeta?.label ?? ''
   const roleEmoji = roleMeta?.emoji ?? ''
-
-  const stepIdx = STEPS_BAR.indexOf(step as (typeof STEPS_BAR)[number])
 
   return (
     <div className="phone-shell bg-[#FBF7FF] flex flex-col min-h-[844px]">
@@ -240,26 +684,14 @@ export default function VoiceClonePage() {
         <div className="flex-1 text-center text-[16px] font-bold text-[#1A0A2E]">
           {step === 'role' && '选择角色'}
           {step === 'prepare' && '录制前准备'}
-          {step === 'record' && `录制声音（${recordedCount + 1}/${SENTENCES.length}）`}
+          {step === 'record' && '录制声音'}
           {step === 'processing' && '正在生成音色'}
           {step === 'done' && '克隆完成'}
         </div>
         <div className="w-9" />
       </div>
 
-      {(step === 'role' || step === 'prepare' || step === 'record') && (
-        <div className="flex gap-1.5 px-5 mb-4 flex-shrink-0">
-          {STEPS_BAR.map(s => (
-            <div key={s} className="flex-1 h-1 rounded-full"
-              style={{
-                background:
-                  stepIdx >= 0 && STEPS_BAR.indexOf(s) <= stepIdx ? '#E91E63' : '#F0E8FF',
-              }}/>
-          ))}
-        </div>
-      )}
-
-      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-8 min-h-0">
+      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 px-5 pb-8">
 
         {step === 'role' && (
           <div>
@@ -408,113 +840,14 @@ export default function VoiceClonePage() {
         )}
 
         {step === 'record' && (
-          <div className="flex flex-col">
-            <div className="flex gap-1.5 mb-4">
-              {SENTENCES.map((_, i) => (
-                <div key={i} className="flex-1 h-1.5 rounded-full"
-                  style={{
-                    background: i < recordedCount ? '#4CAF50' :
-                      i === recordedCount ? '#E91E63' : '#F0E8FF',
-                  }}/>
-              ))}
-            </div>
-
-            <div className="flex flex-col gap-2 mb-3">
-              {SENTENCES.slice(0, recordedCount).map((sentence, i) => (
-                <PastSentence
-                  key={i}
-                  index={i}
-                  sentence={sentence}
-                  onReRecord={() => {
-                    if (recordIntervalRef.current) {
-                      clearInterval(recordIntervalRef.current)
-                      recordIntervalRef.current = null
-                    }
-                    setRecording(false)
-                    setProgress(0)
-                    setCurrentSentence(i)
-                    setRecordedCount(i)
-                    setJustRecorded(false)
-                    setPlayingIndex(-1)
-                  }}
-                />
-              ))}
-            </div>
-
-            <div className="rounded-[14px] border-2 border-[#E91E63] bg-[#FFF0F5] p-4 mb-3">
-              <div className="text-[11px] text-[#E91E63] font-bold mb-2">
-                第{currentSentence + 1}句 · {recording ? '录制中' : '点击麦克风开始'}
-              </div>
-              <div className="text-[14px] text-[#880E4F] leading-relaxed mb-3">
-                {SENTENCES[currentSentence]}
-              </div>
-
-              {recording && (
-                <div className="flex items-center gap-[2px] h-6 mb-3">
-                  {[6, 12, 18, 10, 16, 8, 14, 20, 12, 6, 4, 4].map((h, i) => (
-                    <div key={i} className="w-[2px] rounded-full"
-                      style={{ height: h, background: i < 9 ? '#E91E63' : '#F48FB1' }}/>
-                  ))}
-                </div>
-              )}
-
-              {recording && (
-                <div className="w-full h-1.5 bg-[#F0E8FF] rounded-full overflow-hidden mb-3">
-                  <div className="h-full bg-[#E91E63] rounded-full transition-all"
-                    style={{ width: `${progress}%` }}/>
-                </div>
-              )}
-
-              {!justRecorded && (
-                <div className="flex items-center gap-3">
-                  <button type="button" onClick={handleRecord} disabled={recording}
-                    className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 shadow-md"
-                    style={{ background: recording ? '#F48FB1' : 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
-                    <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="white" strokeWidth="2" fill="none"/>
-                      <line x1="12" y1="19" x2="12" y2="23" stroke="white" strokeWidth="2"/>
-                      <line x1="8" y1="23" x2="16" y2="23" stroke="white" strokeWidth="2"/>
-                    </svg>
-                  </button>
-                  <div className="text-[12px] text-[#E91E63]">
-                    {recording ? '录制中，请朗读文字...' : '点击麦克风开始录制'}
-                  </div>
-                </div>
-              )}
-
-              {justRecorded && (
-                <div className="flex items-center gap-3">
-                  <button type="button" onClick={() => setPlayingIndex(playingIndex === currentSentence ? -1 : currentSentence)}
-                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: '#4CAF50' }}>
-                    {playingIndex === currentSentence ? (
-                      <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="white">
-                        <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" viewBox="0 0 12 12" fill="none">
-                        <polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.8"/>
-                      </svg>
-                    )}
-                  </button>
-                  <button type="button" onClick={handleNext}
-                    className="flex-1 h-10 rounded-full text-white font-bold text-[13px]"
-                    style={{ background: 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
-                    {currentSentence < SENTENCES.length - 1 ? '下一句' : '完成录制'}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {currentSentence < SENTENCES.length - 1 && !justRecorded && (
-              <div className="rounded-[12px] border border-[#F0E8FF] bg-white p-3 opacity-40">
-                <div className="text-[11px] text-[#B0A0C8]">
-                  第{currentSentence + 2}句 &nbsp; {SENTENCES[currentSentence + 1].slice(0, 16)}...
-                </div>
-              </div>
-            )}
-          </div>
+          <RecordStep
+            sentences={SENTENCES}
+            roleLabel={ALL_ROLES.find(r => r.id === selectedRole)?.label ?? '妈妈'}
+            onComplete={() => {
+              setStep('processing')
+              setTimeout(() => setStep('done'), 3000)
+            }}
+          />
         )}
 
         {step === 'processing' && (
