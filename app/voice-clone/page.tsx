@@ -1,280 +1,447 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import VoiceRecorder from '@/components/VoiceRecorder'
-import { READING_SENTENCES } from '@/lib/volcengine'
 
-type Step = 'identity' | 'tips' | 'record' | 'processing' | 'done'
-type Identity = 'mom' | 'dad' | 'grandma' | 'grandpa'
+type Step = 'role' | 'prepare' | 'record' | 'processing' | 'done'
+type Role =
+  | 'mom'
+  | 'dad'
+  | 'grandma'
+  | 'grandpa'
+  | 'waipo'
+  | 'waigong'
+  | 'nainai'
+  | 'yeye'
+  | 'other'
+  | null
 
-const IDENTITY_OPTIONS = [
-  { value: 'mom' as Identity, emoji: '👩', label: '妈妈的声音' },
-  { value: 'dad' as Identity, emoji: '👨', label: '爸爸的声音' },
-  { value: 'grandma' as Identity, emoji: '👵', label: '奶奶/外婆' },
-  { value: 'grandpa' as Identity, emoji: '👴', label: '爷爷/外公' },
+const MAIN_ROLES = [
+  { id: 'mom' as const, label: '妈妈', emoji: '👩' },
+  { id: 'dad' as const, label: '爸爸', emoji: '👨' },
 ]
+
+const OTHER_ROLE = { id: 'other' as const, label: '其他角色', emoji: '✨' }
+
+const MORE_ROLES = [
+  { id: 'nainai' as const, label: '奶奶', emoji: '👵' },
+  { id: 'yeye' as const, label: '爷爷', emoji: '👴' },
+  { id: 'waipo' as const, label: '姥姥', emoji: '👵' },
+  { id: 'waigong' as const, label: '姥爷', emoji: '👴' },
+  { id: 'grandma' as const, label: '外婆', emoji: '👵' },
+  { id: 'grandpa' as const, label: '外公', emoji: '👴' },
+]
+
+const ALL_ROLES = [...MAIN_ROLES, OTHER_ROLE, ...MORE_ROLES]
+
+const SENTENCES = [
+  '小宝贝，今天妈妈给你讲一个温暖的故事。',
+  '在一片美丽的森林里，住着一只可爱的小兔子。',
+  '小兔子有一双长长的耳朵，走到哪里都很开心。',
+  '每天早上，它都会去草地上采摘新鲜的蔬菜。',
+  '有一天，小兔子遇到了一只迷路的小鸟。',
+  '小兔子说：别担心，我帮你找到回家的路。',
+  '它们一起走啊走，终于找到了小鸟的家。',
+  '小鸟的妈妈非常感谢小兔子，送给它一束花。',
+  '小兔子开心地说：帮助朋友，是最快乐的事。',
+  '宝宝，要像小兔子一样善良，好不好？',
+]
+
+/** mock：false = 免费用户（先见会员引导，点「立即录制」进入正式准备页）；true = 直接准备页 */
+const IS_MEMBER = false
+
+const STEPS_BAR = ['role', 'prepare', 'record'] as const
 
 export default function VoiceClonePage() {
   const router = useRouter()
-  const [step, setStep] = useState<Step>('identity')
-  const [identity, setIdentity] = useState<Identity>('mom')
+  const [step, setStep] = useState<Step>('role')
+  const [selectedRole, setSelectedRole] = useState<Role>(null)
+  const [showMore, setShowMore] = useState(false)
+  const [prepareUnlocked, setPrepareUnlocked] = useState(false)
+  const [recording, setRecording] = useState(false)
+  const [recordedCount, setRecordedCount] = useState(0)
   const [currentSentence, setCurrentSentence] = useState(0)
-  const [recordings, setRecordings] = useState<string[]>([])
   const [progress, setProgress] = useState(0)
-  const [error, setError] = useState('')
+  const recordIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const currentSentenceRef = useRef(0)
 
-  // ── Step: identity ──
-  if (step === 'identity') return (
-    <PageShell onBack={() => router.back()} title="🎙️ 克隆你的声音">
-      <div className="px-4 pt-2 pb-6 flex-1 overflow-y-auto no-scrollbar">
-        <SectionTitle>我是</SectionTitle>
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          {IDENTITY_OPTIONS.map(opt => (
-            <button key={opt.value} onClick={() => setIdentity(opt.value)}
-              className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all
-                ${identity===opt.value
-                  ? 'border-[#7B3FD4] bg-[#EDE7F6]'
-                  : 'border-[#F0E8FF] bg-white'}`}>
-              <span className="text-4xl">{opt.emoji}</span>
-              <span className={`text-sm font-bold ${identity===opt.value?'text-[#7B3FD4]':'text-[#1A0A2E]'}`}>
-                {opt.label}
-              </span>
-            </button>
-          ))}
-        </div>
+  useEffect(() => {
+    currentSentenceRef.current = currentSentence
+  }, [currentSentence])
 
-        <div className="bg-[#F8F4FF] rounded-2xl p-4 mb-6 border border-[#F0E8FF]">
-          <p className="text-xs font-bold text-[#6B5B8C] mb-3">录制前请了解</p>
-          {[
-            ['每个音色约 50元成本', '会员权益覆盖，永久使用'],
-            ['录制约 10 句话', '每句朗读后确认录制'],
-            ['声音相似度', '平均达 97% 以上'],
-          ].map(([k,v]) => (
-            <div key={k} className="flex justify-between items-center mb-2 last:mb-0">
-              <span className="text-xs text-[#B0A0C8]">{k}</span>
-              <span className="text-xs font-semibold text-[#6B5B8C]">{v}</span>
-            </div>
-          ))}
-        </div>
-
-        <PrimaryBtn onClick={() => setStep('tips')}>开始录制</PrimaryBtn>
-      </div>
-    </PageShell>
-  )
-
-  // ── Step: tips ──
-  if (step === 'tips') return (
-    <PageShell onBack={() => setStep('identity')} title="🎙️ 录制准备">
-      <div className="px-4 pt-2 pb-6 flex-1 overflow-y-auto no-scrollbar">
-        <div className="bg-gradient-to-br from-[#EDE7F6] to-[#FCE4EC] rounded-2xl p-5 mb-6">
-          <p className="text-sm font-bold text-[#1A0A2E] mb-4">📋 录制小贴士</p>
-          {[
-            { icon:'🤫', tip:'找一个安静的房间，关闭电视和音乐' },
-            { icon:'📱', tip:'手机距离嘴巴 15-20 厘米' },
-            { icon:'📖', tip:'用平时给宝宝讲故事的语气朗读' },
-            { icon:'🎙️', tip:'朗读时语速放慢，发音清晰' },
-          ].map(({icon,tip}) => (
-            <div key={tip} className="flex items-start gap-3 mb-3 last:mb-0">
-              <span className="text-lg flex-shrink-0 mt-0.5">{icon}</span>
-              <span className="text-sm text-[#6B5B8C] leading-snug">{tip}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="text-center mb-6">
-          <div className="text-4xl mb-2 animate-float">🎤</div>
-          <p className="text-[13px] text-[#6B5B8C]">准备好了吗？共需朗读 10 句话</p>
-          <p className="text-[12px] text-[#B0A0C8] mt-1">约需 2-3 分钟</p>
-        </div>
-
-        <PrimaryBtn onClick={() => setStep('record')}>我准备好了</PrimaryBtn>
-      </div>
-    </PageShell>
-  )
-
-  // ── Step: record ──
-  if (step === 'record') {
-    const allDone = recordings.length >= READING_SENTENCES.length
-
-    const handleRecorded = (base64: string, dur: number) => {
-      setRecordings(prev => {
-        const next = [...prev]
-        next[currentSentence] = base64
-        return next
-      })
+  useEffect(() => () => {
+    if (recordIntervalRef.current) {
+      clearInterval(recordIntervalRef.current)
+      recordIntervalRef.current = null
     }
+  }, [])
 
-    const next = () => {
-      if (currentSentence < READING_SENTENCES.length - 1) {
-        setCurrentSentence(s => s + 1)
-      }
-    }
+  const showMemberPrepare = IS_MEMBER || prepareUnlocked
 
-    const submit = async () => {
-      setStep('processing')
-      try {
-        const res = await fetch('/api/voice/clone', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            recordings,
-            identity,
-            userId: 'user_demo_001',
-          }),
-        })
-        if (!res.ok) throw new Error(await res.text())
-        setProgress(100)
-        setStep('done')
-      } catch (e: any) {
-        setError(e.message || '克隆失败，请稍后重试')
-        setStep('record')
-      }
-    }
-
-    return (
-      <PageShell onBack={() => setStep('tips')} title="🎙️ 克隆你的声音">
-        <div className="px-4 pt-2 pb-6 flex-1 overflow-y-auto no-scrollbar">
-
-          {/* Progress */}
-          <div className="bg-white rounded-2xl p-4 border border-[#F0E8FF] mb-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="font-bold text-[#1A0A2E]">录制进度</span>
-              <span className="font-bold text-[#7B3FD4]">{recordings.filter(Boolean).length} / {READING_SENTENCES.length} 句</span>
-            </div>
-            <div className="h-2 bg-[#F0E8FF] rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${(recordings.filter(Boolean).length / READING_SENTENCES.length) * 100}%`,
-                  background: 'linear-gradient(90deg,#7B3FD4,#E91E63)'
-                }}/>
-            </div>
-            <div className="flex justify-between mt-2">
-              {READING_SENTENCES.map((_, i) => (
-                <div key={i} className={`w-2 h-2 rounded-full ${recordings[i] ? 'bg-[#7B3FD4]' : i===currentSentence ? 'bg-[#B0A0C8]' : 'bg-[#F0E8FF]'}`}/>
-              ))}
-            </div>
-          </div>
-
-          {/* Current sentence */}
-          <div className="bg-white rounded-2xl p-5 border-2 border-[#7B3FD4] mb-4 shadow-md">
-            <div className="inline-flex items-center gap-1.5 bg-[#7B3FD4] text-white text-[11px] font-bold px-2.5 py-1 rounded-full mb-3">
-              第 {currentSentence + 1} 句 · 当前
-            </div>
-            <p className="text-[15px] font-semibold text-[#1A0A2E] leading-relaxed mb-4">
-              {READING_SENTENCES[currentSentence]}
-            </p>
-            <VoiceRecorder
-              onComplete={handleRecorded}
-              disabled={false}
-            />
-            {recordings[currentSentence] && currentSentence < READING_SENTENCES.length - 1 && (
-              <button onClick={next}
-                className="w-full mt-3 h-10 rounded-full border-2 border-[#7B3FD4] text-[#7B3FD4] text-sm font-bold">
-                下一句 →
-              </button>
-            )}
-          </div>
-
-          {/* Upcoming sentences */}
-          {READING_SENTENCES.slice(currentSentence + 1, currentSentence + 3).map((sent, i) => (
-            <div key={i} className="bg-[#FBF7FF] rounded-2xl p-4 border border-[#F0E8FF] mb-3 opacity-60">
-              <div className="text-[11px] font-bold text-[#B0A0C8] mb-1">第 {currentSentence + i + 2} 句</div>
-              <p className="text-[13px] text-[#6B5B8C] leading-relaxed">{sent}</p>
-            </div>
-          ))}
-
-          {error && <div className="text-xs text-red-500 text-center mb-3">{error}</div>}
-
-          {allDone && (
-            <PrimaryBtn onClick={submit}>完成录制 · 生成我的声音</PrimaryBtn>
-          )}
-          {!allDone && (
-            <p className="text-center text-xs text-[#B0A0C8]">
-              还需录制 {READING_SENTENCES.length - recordings.filter(Boolean).length} 句
-            </p>
-          )}
-        </div>
-      </PageShell>
-    )
+  const handleRoleNext = () => {
+    if (!selectedRole) return
+    setStep('prepare')
   }
 
-  // ── Step: processing ──
-  if (step === 'processing') return (
-    <PageShell onBack={() => {}} title="🎙️ 生成声音中">
-      <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
-        <div className="text-6xl mb-6 animate-float">🎤</div>
-        <div className="text-lg font-black text-[#1A0A2E] mb-2">声音克隆进行中</div>
-        <div className="text-sm text-[#6B5B8C] mb-8">AI正在学习你的声音特征，请稍候…</div>
-        <div className="w-full h-2 bg-[#F0E8FF] rounded-full overflow-hidden mb-2">
-          <div className="h-full rounded-full animate-pulse"
-            style={{width:'70%',background:'linear-gradient(90deg,#7B3FD4,#E91E63)'}}/>
-        </div>
-        <p className="text-xs text-[#B0A0C8]">预计需要 10-30 秒</p>
-      </div>
-    </PageShell>
-  )
+  const handleStartRecord = () => {
+    setStep('record')
+  }
 
-  // ── Step: done ──
+  const handleRecord = () => {
+    if (recording) return
+    if (recordIntervalRef.current) {
+      clearInterval(recordIntervalRef.current)
+      recordIntervalRef.current = null
+    }
+    setRecording(true)
+    let p = 0
+    recordIntervalRef.current = setInterval(() => {
+      p += 5
+      setProgress(p)
+      if (p >= 100) {
+        if (recordIntervalRef.current) {
+          clearInterval(recordIntervalRef.current)
+          recordIntervalRef.current = null
+        }
+        setRecording(false)
+        setProgress(0)
+        const idx = currentSentenceRef.current
+        if (idx < SENTENCES.length - 1) {
+          setCurrentSentence(idx + 1)
+          setRecordedCount(c => c + 1)
+        } else {
+          setRecordedCount(SENTENCES.length)
+          setStep('processing')
+          setTimeout(() => setStep('done'), 3000)
+        }
+      }
+    }, 80)
+  }
+
+  const handleBack = () => {
+    if (step === 'role') {
+      router.back()
+      return
+    }
+    if (step === 'prepare') {
+      if (!IS_MEMBER && prepareUnlocked) {
+        setPrepareUnlocked(false)
+      } else {
+        setStep('role')
+      }
+      return
+    }
+    if (step === 'record') {
+      setStep('prepare')
+      return
+    }
+    router.back()
+  }
+
+  const resetFlow = () => {
+    setStep('role')
+    setSelectedRole(null)
+    setRecordedCount(0)
+    setCurrentSentence(0)
+    currentSentenceRef.current = 0
+    setPrepareUnlocked(false)
+    setShowMore(false)
+    setRecording(false)
+    setProgress(0)
+    if (recordIntervalRef.current) {
+      clearInterval(recordIntervalRef.current)
+      recordIntervalRef.current = null
+    }
+  }
+
+  const roleMeta = ALL_ROLES.find(r => r.id === selectedRole)
+  const roleLabel = roleMeta?.label ?? ''
+  const roleEmoji = roleMeta?.emoji ?? ''
+
+  const stepIdx = STEPS_BAR.indexOf(step as (typeof STEPS_BAR)[number])
+
   return (
-    <PageShell onBack={() => {}} title="🎙️ 完成">
-      <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
-        <div className="text-6xl mb-4">🎉</div>
-        <div className="text-xl font-black text-[#1A0A2E] mb-2">声音克隆成功！</div>
-        <div className="text-sm text-[#6B5B8C] mb-2 leading-relaxed">
-          {IDENTITY_OPTIONS.find(o=>o.value===identity)?.label} 的专属声音已生成<br/>
-          现在可以用你的声音讲故事了
-        </div>
-
-        <div className="w-full bg-[#F8F4FF] rounded-2xl p-4 border border-[#F0E8FF] mb-8 text-left">
-          <div className="text-xs font-bold text-[#7B3FD4] mb-3">🎧 可以用你的声音讲</div>
-          {['小星星说话了','叮咚叮咚的声音','妈妈的怀抱'].map(t => (
-            <div key={t} className="flex items-center gap-3 py-2 border-b border-[#F0E8FF] last:border-0">
-              <span className="text-lg">📖</span>
-              <span className="text-sm text-[#1A0A2E] font-medium flex-1">{t}</span>
-              <span className="text-[10px] text-white bg-gradient-to-r from-[#7B3FD4] to-[#E91E63] px-2 py-0.5 rounded-full font-bold">换声</span>
-            </div>
-          ))}
-        </div>
-
-        <PrimaryBtn onClick={() => router.push('/stories')}>去听故事 🎧</PrimaryBtn>
-        <button onClick={() => router.back()} className="mt-3 text-xs text-[#B0A0C8]">稍后再说</button>
-      </div>
-    </PageShell>
-  )
-}
-
-// ── Shared components ──
-function PageShell({ children, onBack, title }: { children: React.ReactNode, onBack: () => void, title: string }) {
-  return (
-    <div className="phone-shell">
+    <div className="phone-shell bg-[#FBF7FF] flex flex-col min-h-[844px]">
       <div className="h-12 px-7 flex justify-between items-center pt-3 flex-shrink-0">
-        <span className="text-[15px] font-bold text-[#1A0A2E]">14:58</span>
+        <span className="text-[15px] font-bold text-[#1A0A2E]">10:37</span>
         <span className="text-sm">📶🔋</span>
       </div>
-      <div className="h-13 px-4 flex items-center gap-3 flex-shrink-0">
-        <button onClick={onBack}
-          className="w-9 h-9 rounded-full bg-[#EDE7F6] flex items-center justify-center">
-          <svg className="w-5 h-5 text-[#7B3FD4]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+
+      <div className="px-5 flex items-center flex-shrink-0 mb-2">
+        <button type="button" onClick={handleBack}
+          className="w-9 h-9 flex items-center justify-center rounded-full"
+          style={{ background: 'rgba(0,0,0,0.05)' }}>
+          <svg className="w-5 h-5 text-[#1A0A2E]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
         </button>
-        <div className="text-[17px] font-black text-[#1A0A2E]">{title}</div>
+        <div className="flex-1 text-center text-[16px] font-bold text-[#1A0A2E]">
+          {step === 'role' && '选择角色'}
+          {step === 'prepare' && '录制前准备'}
+          {step === 'record' && `录制声音（${recordedCount + 1}/${SENTENCES.length}）`}
+          {step === 'processing' && '正在生成音色'}
+          {step === 'done' && '克隆完成'}
+        </div>
+        <div className="w-9" />
       </div>
-      {children}
+
+      {(step === 'role' || step === 'prepare' || step === 'record') && (
+        <div className="flex gap-1.5 px-5 mb-4 flex-shrink-0">
+          {STEPS_BAR.map(s => (
+            <div key={s} className="flex-1 h-1 rounded-full"
+              style={{
+                background:
+                  stepIdx >= 0 && STEPS_BAR.indexOf(s) <= stepIdx ? '#E91E63' : '#F0E8FF',
+              }}/>
+          ))}
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-8 min-h-0">
+
+        {step === 'role' && (
+          <div>
+            <div className="text-[13px] text-[#B0A0C8] text-center mb-6">选择谁来给宝宝讲故事</div>
+
+            <div className="flex gap-2 mb-3">
+              {[...MAIN_ROLES, OTHER_ROLE].map(role => (
+                <button key={role.id} type="button"
+                  onClick={() => setSelectedRole(role.id)}
+                  className="flex-1 py-5 rounded-[16px] flex flex-col items-center gap-2 border-2 transition-all"
+                  style={{
+                    background: selectedRole === role.id ? '#FFF0F5' : '#fff',
+                    borderColor: selectedRole === role.id ? '#E91E63' : '#F0E8FF',
+                  }}>
+                  <span className="text-[36px]">{role.emoji}</span>
+                  <span className="text-[14px] font-bold"
+                    style={{ color: selectedRole === role.id ? '#E91E63' : '#1A0A2E' }}>
+                    {role.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-white rounded-[14px] border border-[#F0E8FF] overflow-hidden mb-6">
+              <button type="button" onClick={() => setShowMore(m => !m)}
+                className="w-full px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex">
+                    {MORE_ROLES.slice(0, 3).map(r => (
+                      <span key={r.id} className="text-[18px]" style={{ marginRight: -4 }}>{r.emoji}</span>
+                    ))}
+                  </div>
+                  <span className="text-[13px] text-[#888] ml-2">更多长辈角色</span>
+                </div>
+                <span className="text-[12px] text-[#E91E63]">{showMore ? '收起 ∧' : '展开 ›'}</span>
+              </button>
+
+              {showMore && (
+                <div className="grid grid-cols-3 gap-2 px-3 pb-3">
+                  {MORE_ROLES.map(role => (
+                    <button key={role.id} type="button"
+                      onClick={() => setSelectedRole(role.id)}
+                      className="py-3 rounded-[12px] flex flex-col items-center gap-1 border transition-all"
+                      style={{
+                        background: selectedRole === role.id ? '#FFF0F5' : '#FAFAFA',
+                        borderColor: selectedRole === role.id ? '#E91E63' : '#F0E8FF',
+                      }}>
+                      <span className="text-[24px]">{role.emoji}</span>
+                      <span className="text-[12px] font-semibold"
+                        style={{ color: selectedRole === role.id ? '#E91E63' : '#1A0A2E' }}>
+                        {role.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button type="button" onClick={handleRoleNext}
+              disabled={!selectedRole}
+              className="w-full h-12 rounded-full text-white font-bold text-[15px] transition-all"
+              style={{ background: selectedRole ? 'linear-gradient(135deg,#7B3FD4,#E91E63)' : '#E0D8F0' }}>
+              下一步
+            </button>
+          </div>
+        )}
+
+        {step === 'prepare' && (
+          <div>
+            {!showMemberPrepare ? (
+              <div>
+                <div className="text-center mb-5">
+                  <div className="text-[56px] mb-2">{roleEmoji}</div>
+                  <div className="text-[18px] font-black text-[#1A0A2E] mb-1">
+                    用{roleLabel}的声音<br/>陪伴宝宝入睡
+                  </div>
+                  <div className="text-[13px] text-[#B0A0C8]">只需录制15秒，AI帮你永久保存</div>
+                </div>
+
+                <div className="bg-white rounded-[16px] border border-[#F0E8FF] p-4 mb-4">
+                  <div className="text-[13px] font-bold text-[#1A0A2E] mb-3">开通会员，解锁声音克隆</div>
+                  {[
+                    { icon: '🌙', title: '宝宝睡得更香', desc: '听到爸妈真实声音，安全感更强' },
+                    { icon: '⚡', title: '15秒完成录制', desc: 'AI克隆准确率97%，效果逼真' },
+                    { icon: '📚', title: '全部200个故事', desc: '所有故事均可一键换成你的声音' },
+                    { icon: '💾', title: '永久保存', desc: '克隆一次，随时使用，永不过期' },
+                  ].map(item => (
+                    <div key={item.title} className="flex items-start gap-3 py-2.5 border-b border-[#F9F0FF] last:border-0">
+                      <span className="text-[20px] flex-shrink-0">{item.icon}</span>
+                      <div>
+                        <div className="text-[13px] font-semibold text-[#1A0A2E]">{item.title}</div>
+                        <div className="text-[11px] text-[#B0A0C8] mt-0.5">{item.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-[#FFF0F5] rounded-[14px] p-3 mb-5 border border-[#F8BBD0]">
+                  <div className="text-[11px] text-[#E91E63] font-bold mb-1">💬 来自其他妈妈的评价</div>
+                  <div className="text-[12px] text-[#880E4F] leading-relaxed">
+                    「用自己的声音录完之后，宝宝每次听故事都特别安静，感觉真的在听我讲话一样，太感动了！」
+                  </div>
+                  <div className="text-[11px] text-[#F48FB1] mt-1">— 来自 8个月宝妈</div>
+                </div>
+
+                <button type="button" onClick={() => setPrepareUnlocked(true)}
+                  className="w-full h-12 rounded-full text-white font-bold text-[15px] mb-2"
+                  style={{ background: 'linear-gradient(135deg,#7B3FD4,#E91E63)', boxShadow: '0 6px 20px rgba(233,30,99,0.3)' }}>
+                  开通会员 · 立即录制
+                </button>
+                <div className="text-center text-[11px] text-[#B0A0C8]">演示场景：点击即可进入录制准备与演示流程</div>
+              </div>
+            ) : (
+              <div>
+                <div className="text-center mb-5">
+                  <div className="text-[48px] mb-2">{roleEmoji}</div>
+                  <div className="text-[16px] font-bold text-[#1A0A2E]">准备录制{roleLabel}的声音</div>
+                  <div className="text-[12px] text-[#B0A0C8] mt-1">共10句话，约1分钟</div>
+                </div>
+
+                <div className="flex flex-col gap-3 mb-6">
+                  {[
+                    { icon: '🔇', title: '保持环境安静', desc: '关闭电视、空调，找个安静的房间' },
+                    { icon: '📱', title: '手机距离适中', desc: '距离15-20cm，正常音量说话' },
+                    { icon: '🗣️', title: '用讲故事的语气', desc: '温柔舒缓，克隆效果更逼真' },
+                    { icon: '📝', title: '完整朗读每一句', desc: '不要中途停顿，读错了可以重录' },
+                  ].map(item => (
+                    <div key={item.title} className="flex items-start gap-3 bg-white rounded-[14px] p-3.5 border border-[#F0E8FF]">
+                      <span className="text-[22px] flex-shrink-0">{item.icon}</span>
+                      <div>
+                        <div className="text-[13px] font-bold text-[#1A0A2E]">{item.title}</div>
+                        <div className="text-[11px] text-[#B0A0C8] mt-0.5">{item.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button type="button" onClick={handleStartRecord}
+                  className="w-full h-12 rounded-full text-white font-bold text-[15px]"
+                  style={{ background: 'linear-gradient(135deg,#7B3FD4,#E91E63)', boxShadow: '0 6px 20px rgba(233,30,99,0.3)' }}>
+                  准备好了，开始录制
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 'record' && (
+          <div className="flex flex-col items-center">
+            <div className="flex gap-1.5 mb-6 w-full">
+              {SENTENCES.map((_, i) => (
+                <div key={i} className="flex-1 h-1.5 rounded-full"
+                  style={{
+                    background:
+                      i < recordedCount ? '#E91E63' : i === recordedCount ? '#F48FB1' : '#F0E8FF',
+                  }}/>
+              ))}
+            </div>
+
+            <div className="w-full bg-white rounded-[16px] border border-[#F0E8FF] p-5 mb-6 text-center">
+              <div className="text-[11px] text-[#B0A0C8] mb-3">请朗读以下内容</div>
+              <div className="text-[16px] font-semibold text-[#1A0A2E] leading-relaxed">
+                {SENTENCES[currentSentence]}
+              </div>
+            </div>
+
+            <div className="relative mb-4">
+              {recording && (
+                <div className="absolute inset-0 rounded-full animate-ping"
+                  style={{ background: 'rgba(233,30,99,0.2)', transform: 'scale(1.4)' }}/>
+              )}
+              <button type="button" onClick={handleRecord}
+                disabled={recording}
+                className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg"
+                style={{ background: recording ? '#F48FB1' : 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
+                <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="white" strokeWidth="2" fill="none"/>
+                  <line x1="12" y1="19" x2="12" y2="23" stroke="white" strokeWidth="2"/>
+                  <line x1="8" y1="23" x2="16" y2="23" stroke="white" strokeWidth="2"/>
+                </svg>
+              </button>
+            </div>
+
+            {recording && (
+              <div className="w-full h-1.5 bg-[#F0E8FF] rounded-full overflow-hidden mb-3">
+                <div className="h-full bg-[#E91E63] rounded-full transition-all"
+                  style={{ width: `${progress}%` }}/>
+              </div>
+            )}
+
+            <div className="text-[12px] text-[#B0A0C8]">
+              {recording ? '录制中，请朗读文字...' : '点击麦克风开始录制'}
+            </div>
+          </div>
+        )}
+
+        {step === 'processing' && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="text-[56px] mb-4 animate-pulse">{roleEmoji}</div>
+            <div className="text-[18px] font-bold text-[#1A0A2E] mb-2">正在生成音色...</div>
+            <div className="text-[13px] text-[#B0A0C8] mb-6">AI正在学习{roleLabel}的声音特征</div>
+            <div className="w-48 h-2 bg-[#F0E8FF] rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-[#7B3FD4] to-[#E91E63] rounded-full animate-pulse" style={{ width: '70%' }}/>
+            </div>
+          </div>
+        )}
+
+        {step === 'done' && (
+          <div className="flex flex-col items-center py-8">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
+              style={{ background: 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
+              <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div className="text-[20px] font-black text-[#1A0A2E] mb-1">{roleLabel}的声音克隆成功！</div>
+            <div className="text-[13px] text-[#B0A0C8] mb-6">现在可以用{roleLabel}的声音讲故事了</div>
+
+            <div className="w-full bg-white rounded-[16px] border border-[#F0E8FF] p-4 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-[24px]"
+                  style={{ background: '#FFF0F5' }}>{roleEmoji}</div>
+                <div className="flex-1">
+                  <div className="text-[14px] font-bold text-[#1A0A2E]">{roleLabel}的声音</div>
+                  <div className="text-[11px] text-[#B0A0C8]">克隆完成 · 今天</div>
+                </div>
+                <button type="button" className="px-3 py-1.5 rounded-full text-[12px] font-bold border border-[#E91E63] text-[#E91E63]">
+                  试听
+                </button>
+              </div>
+            </div>
+
+            <button type="button" onClick={() => router.push('/')}
+              className="w-full h-12 rounded-full text-white font-bold text-[15px] mb-3"
+              style={{ background: 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
+              去听故事
+            </button>
+            <button type="button" onClick={resetFlow}
+              className="w-full h-10 text-[13px] text-[#B0A0C8]">
+              再录一个角色
+            </button>
+          </div>
+        )}
+      </div>
     </div>
-  )
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm font-bold text-[#1A0A2E] mb-3">{children}</p>
-}
-
-function PrimaryBtn({ onClick, children }: { onClick: () => void, children: React.ReactNode }) {
-  return (
-    <button onClick={onClick}
-      className="w-full h-14 rounded-full text-white font-extrabold text-base shadow-lg"
-      style={{background:'linear-gradient(135deg,#7B3FD4,#E91E63)',boxShadow:'0 8px 24px rgba(123,63,212,0.35)'}}>
-      {children}
-    </button>
   )
 }

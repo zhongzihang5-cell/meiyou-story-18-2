@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toggleFavorite, isFavorited, subscribe } from '@/lib/favorites'
 import { pathAfterCollectionBack, playerFromSuffix } from '@/lib/collectionNav'
@@ -297,8 +297,7 @@ function fmt(s: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-export default function CollectionPage({ params }: { params: { id: string } }) {
-  const { id } = params
+function CollectionPageContent({ id }: { id: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromParam = searchParams.get('from')
@@ -405,5 +404,20 @@ export default function CollectionPage({ params }: { params: { id: string } }) {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CollectionPage({ params }: { params: { id: string } }) {
+  const id = params.id
+  return (
+    <Suspense
+      fallback={
+        <div className="phone-shell flex items-center justify-center bg-[#FBF7FF] min-h-[844px]">
+          <div className="text-[#B0A0C8] text-sm">加载中...</div>
+        </div>
+      }
+    >
+      <CollectionPageContent id={id} />
+    </Suspense>
   )
 }

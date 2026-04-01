@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
     // 取第一段录音做质量检测（实际应合并所有片段）
     const firstRecording: string = recordings[0]
-    const validation = validateRecording(firstRecording, recordings.length * 8)
+    const validation = validateRecording(firstRecording, null)
     if (!validation.valid) {
       return NextResponse.json({ error: validation.issues.join('；') }, { status: 422 })
     }
@@ -42,7 +42,15 @@ export async function POST(req: NextRequest) {
 
     // 写入 Supabase
     const identityLabel: Record<string, string> = {
-      mom: '妈妈', dad: '爸爸', grandma: '奶奶/外婆', grandpa: '爷爷/外公'
+      mom: '妈妈',
+      dad: '爸爸',
+      grandma: '奶奶/外婆',
+      grandpa: '爷爷/外公',
+      nainai: '奶奶',
+      yeye: '爷爷',
+      waipo: '姥姥',
+      waigong: '姥爷',
+      other: '其他角色',
     }
     
     const hasSupabaseConfig = process.env.NEXT_PUBLIC_SUPABASE_URL &&

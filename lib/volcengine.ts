@@ -88,15 +88,16 @@ export async function synthesizeWithClonedVoice(req: SynthesisRequest): Promise<
 }
 
 // ── 录音质量检测（本地规则校验）──
-export function validateRecording(audioBase64: string, durationSec: number): {
+export function validateRecording(audioBase64: string, durationSec: number | null): {
   valid: boolean
   issues: string[]
 } {
   const issues: string[] = []
-  
-  // 时长检查（至少5秒，最多60秒）
-  if (durationSec < 5) issues.push('录音时间太短，至少需要5秒')
-  if (durationSec > 60) issues.push('录音时间太长，请控制在60秒以内')
+
+  if (durationSec != null) {
+    if (durationSec < 5) issues.push('录音时间太短，至少需要5秒')
+    if (durationSec > 60) issues.push('录音时间太长，请控制在60秒以内')
+  }
   
   // 文件大小检查（base64解码后大小估算）
   const estimatedBytes = (audioBase64.length * 3) / 4

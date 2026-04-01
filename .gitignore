@@ -28,3 +28,7 @@ yarn-error.log*
 # IDE
 .idea/
 .vscode/
+thai_audio/
+soundword_extra/
+generate_soundword_extra.py
+generate_thai_audio.py
