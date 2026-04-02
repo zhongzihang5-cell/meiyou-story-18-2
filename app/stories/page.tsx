@@ -28,6 +28,14 @@ const TABS = [
   { label: '识字', href: '/literacy' },
 ]
 
+const SECTION_MORE_HREF: Record<string, string> = {
+  '🌙 睡前故事': '/category/sleep-story',
+  '🌅 晨起故事': '/category/morning-story',
+  '🧠 认知启蒙': '/category/cognitive',
+  '🌱 生活发展': '/category/life',
+  '💛 情绪社交': '/category/emotion',
+}
+
 const SECTIONS: Record<string, Array<{ id: string, title: string, emoji: string, bg: string, eps: number }>> = {
   '🌙 睡前故事': [
     { id:'001', title:'睡吧，我的宝贝', emoji:'🌙', bg:'linear-gradient(135deg,#1a1a3e,#4a1a6e)', eps:23 },
@@ -160,7 +168,9 @@ export default function StoriesPage() {
           <div key={title}>
             <div className="flex justify-between items-center px-4 pt-5 pb-2">
               <p className="text-[15px] font-extrabold text-[#1A0A2E]">{title}</p>
-              <span className="text-xs text-[#7B3FD4]">更多 ›</span>
+              <Link href={SECTION_MORE_HREF[title] ?? '/stories'} className="text-xs text-[#7B3FD4]">
+                更多 ›
+              </Link>
             </div>
             <div className="flex gap-2.5 px-4 overflow-x-auto no-scrollbar pb-1">
               {items.map(item => (

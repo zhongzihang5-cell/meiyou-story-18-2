@@ -384,10 +384,15 @@ function PlayerContent({ id }: { id: string }) {
             <div className="text-center mb-5">
               <div className="text-4xl mb-2">🎙️</div>
               <div className="text-[17px] font-black text-[#1A0A2E] mb-1">开通会员解锁原声讲述</div>
-              <div className="text-[12px] text-[#6B5B8C]">克隆爸妈声音，为宝宝讲每一个故事</div>
+              <div className="text-[12px] text-[#6B5B8C] leading-relaxed px-1">用爸妈的声音，给宝宝讲库里的每一首故事</div>
             </div>
             <div className="bg-[#F8F4FF] rounded-2xl p-4 mb-5 border border-[#F0E8FF]">
-              {[['可克隆音色','2个（妈妈/爸爸）'],['克隆准确率','平均97%以上'],['适用故事','全部200条故事'],['保存时长','永久有效']].map(([k,v]) => (
+              {[
+                ['可克隆音色', '会员最多3种'],
+                ['适用故事', '0～6岁故事全库畅听'],
+                ['定制故事', 'AI生成每月30次'],
+                ['保存时长', '永久有效'],
+              ].map(([k, v]) => (
                 <div key={k} className="flex justify-between py-2 border-b border-[#F0E8FF] last:border-0">
                   <span className="text-[12px] text-[#B0A0C8]">{k}</span>
                   <span className="text-[12px] font-bold text-[#1A0A2E]">{v}</span>
@@ -395,7 +400,7 @@ function PlayerContent({ id }: { id: string }) {
               ))}
             </div>
             <button onClick={() => { setShowVipSheet(false); router.push('/voice-clone') }} className="w-full h-[52px] rounded-full text-white font-extrabold text-[15px] mb-3" style={{ background:'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
-              开通会员并克隆声音
+              开通会员克隆声音
             </button>
             <button onClick={() => setShowVipSheet(false)} className="w-full h-10 text-[#B0A0C8] text-[13px]">暂不开通</button>
           </div>

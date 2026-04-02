@@ -260,7 +260,13 @@ export default function NurseryPage() {
             {/* 分区标题 */}
             <div className="flex justify-between items-center px-4 pt-4 pb-2">
               <p className="text-[15px] font-extrabold text-[#1A0A2E]">{SECTION_TITLES[key]}</p>
-              <button className="text-xs text-[#7B3FD4]">更多 ›</button>
+              {key === 'smart' ? (
+                <Link href="/category/nursery-songs" className="text-xs text-[#7B3FD4]">
+                  更多 ›
+                </Link>
+              ) : (
+                <span className="text-xs text-[#B0A0C8]">更多 ›</span>
+              )}
             </div>
 
             {/* 横向滚动卡片（4个）*/}

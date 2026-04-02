@@ -258,15 +258,15 @@ export default function HomePage() {
         )}
 
         {/* 睡前故事 */}
-        <SectionHeader title="🌙 睡前故事" href="/stories?scene=睡前故事" />
+        <SectionHeader title="🌙 睡前故事" href="/category/sleep-story" />
         <HScroll items={SLEEP_STORIES} />
 
         {/* 益智儿歌 */}
-        <SectionHeader title="🎵 益智儿歌" href="#" />
+        <SectionHeader title="🎵 益智儿歌" href="/category/nursery-songs" />
         <HScroll items={NURSERY_SONGS} />
 
         {/* 热门动画 */}
-        <SectionHeader title="🎬 热门动画" href="#" />
+        <SectionHeader title="🎬 热门动画" href="/category/animation" />
         <HScroll items={ANIMATIONS} kind="animation" />
 
         <div style={{ height: 16 }} />

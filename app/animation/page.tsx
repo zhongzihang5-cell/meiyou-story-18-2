@@ -247,7 +247,13 @@ export default function AnimationPage() {
           <div key={key}>
             <div className="flex justify-between items-center px-4 pt-4 pb-2">
               <p className="text-[15px] font-extrabold text-[#1A0A2E]">{SECTION_TITLES[key]}</p>
-              <button className="text-xs text-[#7B3FD4]">更多 ›</button>
+              {key === 'story' ? (
+                <Link href="/category/animation" className="text-xs text-[#7B3FD4]">
+                  更多 ›
+                </Link>
+              ) : (
+                <span className="text-xs text-[#B0A0C8]">更多 ›</span>
+              )}
             </div>
             <div className="flex gap-2.5 px-4 overflow-x-auto no-scrollbar pb-1">
               {items.map(item => (
