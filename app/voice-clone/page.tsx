@@ -1,6 +1,7 @@
 'use client'
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useEffect, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { markVoiceSlotDone, roleToVoiceSlot, sessionAudioKey } from '@/lib/voiceSlots'
 
 type Step = 'role' | 'prepare' | 'record' | 'processing' | 'done'
 type Role =
@@ -647,8 +648,9 @@ function RecordStep({
   )
 }
 
-export default function VoiceClonePage() {
+function VoiceCloneContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [step, setStep] = useState<Step>('role')
   const [selectedRole, setSelectedRole] = useState<Role>(null)
   const [customRoleName, setCustomRoleName] = useState('')
@@ -656,18 +658,55 @@ export default function VoiceClonePage() {
   /** 克隆完成页「试听」用，在完成录制时从各句录音复制而来，避免子组件卸载 revoke 后失效 */
   const [clonePreviewUrl, setClonePreviewUrl] = useState<string | null>(null)
   const previewAudioRef = useRef<HTMLAudioElement | null>(null)
-  const clonePreviewUrlRef = useRef<string | null>(null)
-
-  clonePreviewUrlRef.current = clonePreviewUrl
+  const skipAppliedRef = useRef(false)
 
   useEffect(() => {
     return () => {
-      const u = clonePreviewUrlRef.current
-      if (u) URL.revokeObjectURL(u)
       previewAudioRef.current?.pause()
       previewAudioRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    if (skipAppliedRef.current) return
+    const skip = searchParams.get('skipRole')
+    if (skip !== '1' && skip !== 'true') return
+    const r = searchParams.get('role')
+    if (r === 'mom') {
+      setSelectedRole('mom')
+      setCustomRoleName('')
+      setPrepareUnlocked(true)
+      setStep('prepare')
+      skipAppliedRef.current = true
+    } else if (r === 'dad') {
+      setSelectedRole('dad')
+      setCustomRoleName('')
+      setPrepareUnlocked(true)
+      setStep('prepare')
+      skipAppliedRef.current = true
+    } else if (r === 'other') {
+      setSelectedRole('other')
+      setCustomRoleName(decodeURIComponent(searchParams.get('custom') || '其他家人'))
+      setPrepareUnlocked(true)
+      setStep('prepare')
+      skipAppliedRef.current = true
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    if (step !== 'done' || !clonePreviewUrl || !selectedRole) return
+    const slot = roleToVoiceSlot(selectedRole)
+    if (!slot) return
+    markVoiceSlotDone(slot, {
+      date: new Date().toISOString().slice(0, 10),
+      sentences: SENTENCES.length,
+    })
+    try {
+      sessionStorage.setItem(sessionAudioKey(slot), clonePreviewUrl)
+    } catch {
+      /* ignore */
+    }
+  }, [step, clonePreviewUrl, selectedRole])
 
   const showMemberPrepare = IS_MEMBER || prepareUnlocked
 
@@ -687,6 +726,10 @@ export default function VoiceClonePage() {
       return
     }
     if (step === 'prepare') {
+      if (searchParams.get('from') === 'my-voices') {
+        router.push('/my-voices')
+        return
+      }
       if (!IS_MEMBER && prepareUnlocked) {
         setPrepareUnlocked(false)
       } else {
@@ -1036,10 +1079,14 @@ export default function VoiceClonePage() {
               </div>
             </div>
 
-            <button type="button" onClick={() => router.push('/featured')}
+            <button type="button" onClick={() => router.push('/stories')}
               className="w-full h-12 rounded-full text-white font-bold text-[15px] mb-3"
               style={{ background: 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
               去听故事
+            </button>
+            <button type="button" onClick={() => router.push('/my-voices')}
+              className="w-full h-11 rounded-full text-[13px] font-bold mb-2 border-2 border-[#E0D8F0] text-[#6B5B8C] active:bg-[#FAF7FF]">
+              管理我的声音
             </button>
             <button type="button" onClick={resetFlow}
               className="w-full h-10 text-[13px] text-[#B0A0C8]">
@@ -1049,5 +1096,18 @@ export default function VoiceClonePage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function VoiceClonePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="phone-shell bg-[#FBF7FF] flex flex-col items-center justify-center min-h-[844px] text-[#B0A0C8]">
+          加载中…
+        </div>
+      }>
+      <VoiceCloneContent />
+    </Suspense>
   )
 }
