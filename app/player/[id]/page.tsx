@@ -8,6 +8,9 @@ import { NURSERY_COLLECTIONS } from '@/lib/nurseryCollections'
 
 const COLLECTION_STORIES = MOCK_STORIES.slice(0, 12)
 
+/** mock 中首条故事《小星星说话了》——已配置爸妈双原声轨，播放页单独三档切换 */
+const STAR_TALK_STORY_ID = '001'
+
 const SUBTITLES = [
   { start: 0,  end: 5,  text: '嗨，小朋友们，今天的故事开始啦～' },
   { start: 6,  end: 12, text: '夜空里，有一颗小星星，一闪一闪亮晶晶。' },
@@ -85,6 +88,7 @@ function PlayerContent({ id }: { id: string }) {
   const isNurseryPlayer =
     fromParam === 'nursery' || (!!colId && Object.prototype.hasOwnProperty.call(NURSERY_COLLECTIONS, colId))
   const isVoiceGuided = id === '003' && !isNurseryPlayer
+  const hasParentVoiceTracks = id === STAR_TALK_STORY_ID && !isNurseryPlayer
 
   const handleBack = () => {
     if (colId) {
@@ -105,7 +109,7 @@ function PlayerContent({ id }: { id: string }) {
   const [subtitleMode, setSubtitleMode] = useState(false)
   const currentSub = subtitleList.find(s => currentSec >= s.start && currentSec <= s.end)
 
-  const [voiceMode, setVoiceMode] = useState<'default'|'original'>('default')
+  const [voiceMode, setVoiceMode] = useState<'default' | 'original' | 'mom' | 'dad'>('default')
   const [showVipSheet, setShowVipSheet] = useState(false)
   const [showBubble, setShowBubble] = useState(id === '003' && !isNurseryPlayer)
 
@@ -138,6 +142,7 @@ function PlayerContent({ id }: { id: string }) {
     setCurrentSec(0)
     setPlaying(false)
     setSubtitleMode(false)
+    setVoiceMode('default')
   }, [id])
 
   useEffect(() => {
@@ -191,7 +196,12 @@ function PlayerContent({ id }: { id: string }) {
     }
   }
 
-  const handleVoiceSwitch = (mode: 'default'|'original') => {
+  const pickVoice = (mode: 'default' | 'original' | 'mom' | 'dad') => {
+    if (hasParentVoiceTracks) {
+      setVoiceMode(mode)
+      return
+    }
+    if (mode === 'mom' || mode === 'dad') return
     if (mode === 'original' && voiceMode === 'default') setShowVipSheet(true)
     else setVoiceMode(mode)
   }
@@ -278,17 +288,43 @@ function PlayerContent({ id }: { id: string }) {
         <div className="text-[12px] text-white/50 mb-3">{story.sub_category} · {story.age_label}</div>
 
         {!isNurseryPlayer && (
-          <div className="inline-flex rounded-full overflow-hidden border border-white/15" style={{ background: 'rgba(255,255,255,0.08)' }}>
-            <button onClick={() => handleVoiceSwitch('default')} className="px-4 py-2 text-[11px] font-bold transition-all"
-              style={{ background: voiceMode==='default' ? 'rgba(255,255,255,0.22)' : 'transparent', color: voiceMode==='default' ? '#fff' : 'rgba(255,255,255,0.4)' }}>
-              默认音色
-            </button>
-            <button onClick={() => handleVoiceSwitch('original')} className="px-4 py-2 text-[11px] font-bold flex items-center gap-1 transition-all"
-              style={{ background: voiceMode==='original' ? 'rgba(255,255,255,0.22)' : 'transparent', color: voiceMode==='original' ? '#FFE566' : 'rgba(255,255,255,0.4)' }}>
-              🎙️ 原声讲述
-              <span className="text-[9px] bg-[#E91E63] text-white px-1.5 py-0.5 rounded-full">VIP</span>
-            </button>
-          </div>
+          hasParentVoiceTracks ? (
+            <div className="inline-flex max-w-full rounded-full overflow-hidden border border-white/15" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <button type="button" onClick={() => pickVoice('default')} className="px-2.5 py-2 text-[10px] font-bold transition-all flex-shrink-0"
+                style={{
+                  background: voiceMode === 'default' ? 'rgba(255,255,255,0.22)' : 'transparent',
+                  color: voiceMode === 'default' ? '#fff' : 'rgba(255,255,255,0.45)',
+                }}>
+                默认音色
+              </button>
+              <button type="button" onClick={() => pickVoice('mom')} className="px-2.5 py-2 text-[10px] font-bold transition-all flex-shrink-0 border-l border-white/10"
+                style={{
+                  background: voiceMode === 'mom' ? 'rgba(255,182,193,0.35)' : 'transparent',
+                  color: voiceMode === 'mom' ? '#FFE4EC' : 'rgba(255,255,255,0.45)',
+                }}>
+                妈妈原声
+              </button>
+              <button type="button" onClick={() => pickVoice('dad')} className="px-2.5 py-2 text-[10px] font-bold transition-all flex-shrink-0 border-l border-white/10"
+                style={{
+                  background: voiceMode === 'dad' ? 'rgba(144,202,249,0.35)' : 'transparent',
+                  color: voiceMode === 'dad' ? '#E3F2FD' : 'rgba(255,255,255,0.45)',
+                }}>
+                爸爸原声
+              </button>
+            </div>
+          ) : (
+            <div className="inline-flex rounded-full overflow-hidden border border-white/15" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <button type="button" onClick={() => pickVoice('default')} className="px-4 py-2 text-[11px] font-bold transition-all"
+                style={{ background: voiceMode === 'default' ? 'rgba(255,255,255,0.22)' : 'transparent', color: voiceMode === 'default' ? '#fff' : 'rgba(255,255,255,0.4)' }}>
+                默认音色
+              </button>
+              <button type="button" onClick={() => pickVoice('original')} className="px-4 py-2 text-[11px] font-bold flex items-center gap-1 transition-all"
+                style={{ background: voiceMode === 'original' ? 'rgba(255,255,255,0.22)' : 'transparent', color: voiceMode === 'original' ? '#FFE566' : 'rgba(255,255,255,0.4)' }}>
+                🎙️ 原声讲述
+                <span className="text-[9px] bg-[#E91E63] text-white px-1.5 py-0.5 rounded-full">VIP</span>
+              </button>
+            </div>
+          )
         )}
 
         {isVoiceGuided && showBubble && (
