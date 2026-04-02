@@ -21,6 +21,18 @@ const DEFAULT_SLOTS: VoiceSlotsState = {
   elder: { done: false },
 }
 
+/**
+ * 仅用于首帧 state 初始化，须与 SSR 输出一致。
+ * 勿用 getVoiceSlots() 做 useState 初值，否则客户端会读 localStorage 导致 hydration 报错。
+ */
+export function getVoiceSlotsServerSnapshot(): VoiceSlotsState {
+  return {
+    mom: { ...DEFAULT_SLOTS.mom },
+    dad: { ...DEFAULT_SLOTS.dad },
+    elder: { ...DEFAULT_SLOTS.elder },
+  }
+}
+
 export function getVoiceSlots(): VoiceSlotsState {
   if (typeof window === 'undefined') return DEFAULT_SLOTS
   try {

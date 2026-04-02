@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { getStoryById, MOCK_STORIES } from '@/lib/mockData'
 import { toggleFavorite, isFavorited, subscribe } from '@/lib/favorites'
 import { isCollectionFromParam, pathAfterCollectionBack } from '@/lib/collectionNav'
+import { NURSERY_COLLECTIONS } from '@/lib/nurseryCollections'
 
 const COLLECTION_STORIES = MOCK_STORIES.slice(0, 12)
 
@@ -80,7 +81,10 @@ function PlayerContent({ id }: { id: string }) {
 
   const colId = searchParams.get('col')
   const fromParam = searchParams.get('from')
-  const isVoiceGuided = id === '003'
+  /** 儿歌合集：不支持克隆 / 原声切换 */
+  const isNurseryPlayer =
+    fromParam === 'nursery' || (!!colId && Object.prototype.hasOwnProperty.call(NURSERY_COLLECTIONS, colId))
+  const isVoiceGuided = id === '003' && !isNurseryPlayer
 
   const handleBack = () => {
     if (colId) {
@@ -103,7 +107,7 @@ function PlayerContent({ id }: { id: string }) {
 
   const [voiceMode, setVoiceMode] = useState<'default'|'original'>('default')
   const [showVipSheet, setShowVipSheet] = useState(false)
-  const [showBubble, setShowBubble] = useState(isVoiceGuided)
+  const [showBubble, setShowBubble] = useState(id === '003' && !isNurseryPlayer)
 
   const [showTimer, setShowTimer] = useState(false)
   const [showPlaylist, setShowPlaylist] = useState(false)
@@ -273,17 +277,19 @@ function PlayerContent({ id }: { id: string }) {
         </div>
         <div className="text-[12px] text-white/50 mb-3">{story.sub_category} · {story.age_label}</div>
 
-        <div className="inline-flex rounded-full overflow-hidden border border-white/15" style={{ background: 'rgba(255,255,255,0.08)' }}>
-          <button onClick={() => handleVoiceSwitch('default')} className="px-4 py-2 text-[11px] font-bold transition-all"
-            style={{ background: voiceMode==='default' ? 'rgba(255,255,255,0.22)' : 'transparent', color: voiceMode==='default' ? '#fff' : 'rgba(255,255,255,0.4)' }}>
-            默认音色
-          </button>
-          <button onClick={() => handleVoiceSwitch('original')} className="px-4 py-2 text-[11px] font-bold flex items-center gap-1 transition-all"
-            style={{ background: voiceMode==='original' ? 'rgba(255,255,255,0.22)' : 'transparent', color: voiceMode==='original' ? '#FFE566' : 'rgba(255,255,255,0.4)' }}>
-            🎙️ 原声讲述
-            <span className="text-[9px] bg-[#E91E63] text-white px-1.5 py-0.5 rounded-full">VIP</span>
-          </button>
-        </div>
+        {!isNurseryPlayer && (
+          <div className="inline-flex rounded-full overflow-hidden border border-white/15" style={{ background: 'rgba(255,255,255,0.08)' }}>
+            <button onClick={() => handleVoiceSwitch('default')} className="px-4 py-2 text-[11px] font-bold transition-all"
+              style={{ background: voiceMode==='default' ? 'rgba(255,255,255,0.22)' : 'transparent', color: voiceMode==='default' ? '#fff' : 'rgba(255,255,255,0.4)' }}>
+              默认音色
+            </button>
+            <button onClick={() => handleVoiceSwitch('original')} className="px-4 py-2 text-[11px] font-bold flex items-center gap-1 transition-all"
+              style={{ background: voiceMode==='original' ? 'rgba(255,255,255,0.22)' : 'transparent', color: voiceMode==='original' ? '#FFE566' : 'rgba(255,255,255,0.4)' }}>
+              🎙️ 原声讲述
+              <span className="text-[9px] bg-[#E91E63] text-white px-1.5 py-0.5 rounded-full">VIP</span>
+            </button>
+          </div>
+        )}
 
         {isVoiceGuided && showBubble && (
           <div className="mt-2 relative inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold text-white" style={{ background: 'rgba(233,30,99,0.9)' }}>
@@ -376,8 +382,8 @@ function PlayerContent({ id }: { id: string }) {
         </div>
       )}
 
-      {/* VIP弹层 */}
-      {showVipSheet && (
+      {/* VIP弹层（儿歌播放页不展示） */}
+      {showVipSheet && !isNurseryPlayer && (
         <div className="absolute inset-0 z-50 flex items-end" style={{ background:'rgba(0,0,0,0.55)', backdropFilter:'blur(4px)' }} onClick={() => setShowVipSheet(false)}>
           <div className="w-full bg-white rounded-t-[28px] px-5 pt-6 pb-10" onClick={e => e.stopPropagation()}>
             <div className="w-9 h-1 bg-[#E0D8F0] rounded-full mx-auto mb-5"/>
