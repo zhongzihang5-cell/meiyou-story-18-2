@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { LITERACY_CATEGORIES } from '@/lib/literacyThemes'
 
 const TABS = [
-  { label: '精选', href: '/' },
+  { label: '精选', href: '/featured' },
   { label: '儿歌', href: '/nursery' },
   { label: '动画', href: '/animation' },
   { label: '故事', href: '/stories' },

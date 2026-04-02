@@ -965,7 +965,7 @@ export default function VoiceClonePage() {
               </div>
             </div>
 
-            <button type="button" onClick={() => router.push('/')}
+            <button type="button" onClick={() => router.push('/featured')}
               className="w-full h-12 rounded-full text-white font-bold text-[15px] mb-3"
               style={{ background: 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
               去听故事

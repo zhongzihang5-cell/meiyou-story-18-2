@@ -10,7 +10,7 @@ export function isCollectionFromParam(v: string | null): v is CollectionFrom {
 export function pathAfterCollectionBack(from: string | null): string {
   if (from === 'stories') return '/stories'
   if (from === 'nursery') return '/nursery'
-  return '/'
+  return '/featured'
 }
 
 /** 拼到 player URL 上的 &from=（需在已有 query 后追加） */
