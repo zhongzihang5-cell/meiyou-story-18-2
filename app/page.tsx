@@ -73,7 +73,7 @@ const BANNERS = [
     title: '妈妈太累了？\nAI替你讲故事',
     sub: '输入主题 · 30秒生成',
     btnText: '立即体验',
-    btnHref: '/voice-clone',
+    btnHref: '/custom-story',
     emoji: '🤖📖',
   },
 ]

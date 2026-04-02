@@ -12,6 +12,7 @@ type Role =
   | 'waigong'
   | 'nainai'
   | 'yeye'
+  | 'yiyi'
   | 'other'
   | null
 
@@ -22,16 +23,18 @@ const MAIN_ROLES = [
 
 const OTHER_ROLE = { id: 'other' as const, label: '其他角色', emoji: '✨' }
 
-const MORE_ROLES = [
-  { id: 'nainai' as const, label: '奶奶', emoji: '👵' },
-  { id: 'yeye' as const, label: '爷爷', emoji: '👴' },
-  { id: 'waipo' as const, label: '姥姥', emoji: '👵' },
-  { id: 'waigong' as const, label: '姥爷', emoji: '👴' },
-  { id: 'grandma' as const, label: '外婆', emoji: '👵' },
-  { id: 'grandpa' as const, label: '外公', emoji: '👴' },
+/** 其他家人：两行四列，最后一格为「+ 其他角色」 */
+const FAMILY_GRID_ROLES: { id: Exclude<Role, 'mom' | 'dad' | 'other' | null>; label: string; emoji: string; circleBg: string }[] = [
+  { id: 'waipo', label: '姥姥', emoji: '👵', circleBg: '#FCE4EC' },
+  { id: 'waigong', label: '姥爷', emoji: '👴', circleBg: '#E8F5E9' },
+  { id: 'nainai', label: '奶奶', emoji: '👵', circleBg: '#FFF9C4' },
+  { id: 'yeye', label: '爷爷', emoji: '👴', circleBg: '#E3F2FD' },
+  { id: 'grandma', label: '外婆', emoji: '👵', circleBg: '#F3E5F5' },
+  { id: 'grandpa', label: '外公', emoji: '👴', circleBg: '#E0F7FA' },
+  { id: 'yiyi', label: '姨姨', emoji: '👩', circleBg: '#FFE0B2' },
 ]
 
-const ALL_ROLES = [...MAIN_ROLES, OTHER_ROLE, ...MORE_ROLES]
+const ALL_ROLES = [...MAIN_ROLES, OTHER_ROLE, ...FAMILY_GRID_ROLES]
 
 const SENTENCES = [
   '小宝贝，今天妈妈给你讲一个温暖的故事。',
@@ -423,12 +426,12 @@ function RecordStep({
                 </div>
                 {isExpanded && (
                   <div
+                    onClick={e => e.stopPropagation()}
                     style={{
                       display: 'flex',
-                      flexWrap: 'wrap',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 18,
+                      flexDirection: 'column',
+                      gap: 10,
+                      paddingTop: 4,
                     }}>
                     <button
                       type="button"
@@ -437,46 +440,52 @@ function RecordStep({
                         playAudio(i)
                       }}
                       style={{
-                        width: 50,
-                        height: 50,
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg,#7B3FD4,#E91E63)',
-                        border: 'none',
+                        width: '100%',
+                        height: 44,
+                        borderRadius: 12,
+                        border: '2px solid #D8C8F0',
+                        background: '#FAF7FF',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: '0 4px 14px rgba(123,63,212,0.28)',
-                        flexShrink: 0,
+                        gap: 8,
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: '#5C3D9E',
                       }}>
                       {isPlaying ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#5C3D9E">
                           <rect x="6" y="4" width="4" height="16" />
                           <rect x="14" y="4" width="4" height="16" />
                         </svg>
                       ) : (
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="white" style={{ marginLeft: 3 }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#5C3D9E" style={{ marginLeft: 2 }}>
                           <polygon points="5,3 19,12 5,21" />
                         </svg>
                       )}
+                      {isPlaying ? '暂停' : '回听录音'}
                     </button>
-                    <span
-                      role="button"
-                      tabIndex={0}
+                    <button
+                      type="button"
                       onClick={e => {
                         e.stopPropagation()
                         reRecord(i)
                       }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          reRecord(i)
-                        }
-                      }}
-                      style={{ fontSize: 13, color: '#E91E63', fontWeight: 500, cursor: 'pointer' }}>
-                      重录
-                    </span>
+                      style={{
+                        alignSelf: 'center',
+                        padding: '6px 12px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: '#A898B8',
+                        textDecoration: 'underline',
+                        textUnderlineOffset: 3,
+                      }}>
+                      不满意？重新录制
+                    </button>
                     {i < sentences.length - 1 && i === recordedCount && (
                       <button
                         type="button"
@@ -485,14 +494,17 @@ function RecordStep({
                           goNextSentence()
                         }}
                         style={{
-                          fontSize: 13,
+                          width: '100%',
+                          height: 50,
+                          marginTop: 4,
+                          borderRadius: 14,
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: 16,
+                          fontWeight: 700,
                           color: 'white',
                           background: 'linear-gradient(135deg,#7B3FD4,#E91E63)',
-                          border: 'none',
-                          borderRadius: 20,
-                          padding: '6px 16px',
-                          cursor: 'pointer',
-                          fontWeight: 500,
+                          boxShadow: '0 6px 20px rgba(123,63,212,0.35)',
                         }}>
                         下一句
                       </button>
@@ -621,13 +633,14 @@ export default function VoiceClonePage() {
   const router = useRouter()
   const [step, setStep] = useState<Step>('role')
   const [selectedRole, setSelectedRole] = useState<Role>(null)
-  const [showMore, setShowMore] = useState(false)
+  const [customRoleName, setCustomRoleName] = useState('')
   const [prepareUnlocked, setPrepareUnlocked] = useState(false)
 
   const showMemberPrepare = IS_MEMBER || prepareUnlocked
 
   const handleRoleNext = () => {
     if (!selectedRole) return
+    if (selectedRole === 'other' && !customRoleName.trim()) return
     setStep('prepare')
   }
 
@@ -658,13 +671,17 @@ export default function VoiceClonePage() {
   const resetFlow = () => {
     setStep('role')
     setSelectedRole(null)
+    setCustomRoleName('')
     setPrepareUnlocked(false)
-    setShowMore(false)
   }
 
   const roleMeta = ALL_ROLES.find(r => r.id === selectedRole)
-  const roleLabel = roleMeta?.label ?? ''
-  const roleEmoji = roleMeta?.emoji ?? ''
+  const roleLabel =
+    selectedRole === 'other' ? customRoleName.trim() : (roleMeta?.label ?? '')
+  const roleEmoji = selectedRole === 'other' ? OTHER_ROLE.emoji : (roleMeta?.emoji ?? '')
+
+  const roleStepCanProceed =
+    !!selectedRole && (selectedRole !== 'other' || !!customRoleName.trim())
 
   return (
     <div className="phone-shell bg-[#FBF7FF] flex flex-col min-h-[844px]">
@@ -695,65 +712,127 @@ export default function VoiceClonePage() {
 
         {step === 'role' && (
           <div>
-            <div className="text-[13px] text-[#B0A0C8] text-center mb-6">选择谁来给宝宝讲故事</div>
+            <div className="text-[13px] text-[#B0A0C8] text-center mb-1">谁来给宝宝讲故事？</div>
+            <div className="text-[11px] text-[#D0C8E0] text-center mb-5">选择克隆音色对应的家庭角色</div>
 
-            <div className="flex gap-2 mb-3">
-              {[...MAIN_ROLES, OTHER_ROLE].map(role => (
-                <button key={role.id} type="button"
-                  onClick={() => setSelectedRole(role.id)}
-                  className="flex-1 py-5 rounded-[16px] flex flex-col items-center gap-2 border-2 transition-all"
-                  style={{
-                    background: selectedRole === role.id ? '#FFF0F5' : '#fff',
-                    borderColor: selectedRole === role.id ? '#E91E63' : '#F0E8FF',
-                  }}>
-                  <span className="text-[36px]">{role.emoji}</span>
-                  <span className="text-[14px] font-bold"
-                    style={{ color: selectedRole === role.id ? '#E91E63' : '#1A0A2E' }}>
-                    {role.label}
-                  </span>
-                </button>
-              ))}
+            <div className="text-[13px] font-bold text-[#1A0A2E] mb-2.5">主要角色</div>
+            <div className="flex gap-2 mb-5">
+              {MAIN_ROLES.map(role => {
+                const sel = selectedRole === role.id
+                return (
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedRole(role.id)
+                      setCustomRoleName('')
+                    }}
+                    className="flex-1 py-4 rounded-[18px] flex flex-col items-center gap-2 border-2 transition-all bg-white"
+                    style={{
+                      borderColor: sel ? '#7B3FD4' : '#F0E8FF',
+                      boxShadow: sel ? '0 4px 16px rgba(123,63,212,0.12)' : 'none',
+                    }}>
+                    <div
+                      className="w-14 h-14 rounded-full flex items-center justify-center text-[32px]"
+                      style={{
+                        background: role.id === 'mom' ? '#FCE4EC' : '#E3F2FD',
+                      }}>
+                      {role.emoji}
+                    </div>
+                    <span className="text-[15px] font-black" style={{ color: sel ? '#7B3FD4' : '#1A0A2E' }}>
+                      {role.label}
+                    </span>
+                    <span className="text-[11px] font-medium" style={{ color: sel ? '#7B3FD4' : '#B0A0C8' }}>
+                      {sel ? '已选择' : '点击选择'}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
 
-            <div className="bg-white rounded-[14px] border border-[#F0E8FF] overflow-hidden mb-6">
-              <button type="button" onClick={() => setShowMore(m => !m)}
-                className="w-full px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex">
-                    {MORE_ROLES.slice(0, 3).map(r => (
-                      <span key={r.id} className="text-[18px]" style={{ marginRight: -4 }}>{r.emoji}</span>
-                    ))}
-                  </div>
-                  <span className="text-[13px] text-[#888] ml-2">更多长辈角色</span>
-                </div>
-                <span className="text-[12px] text-[#E91E63]">{showMore ? '收起 ∧' : '展开 ›'}</span>
-              </button>
-
-              {showMore && (
-                <div className="grid grid-cols-3 gap-2 px-3 pb-3">
-                  {MORE_ROLES.map(role => (
-                    <button key={role.id} type="button"
-                      onClick={() => setSelectedRole(role.id)}
-                      className="py-3 rounded-[12px] flex flex-col items-center gap-1 border transition-all"
+            <div className="text-[13px] font-bold text-[#1A0A2E] mb-2.5">其他家人</div>
+            <div className="bg-white rounded-[18px] border border-[#F0E8FF] p-3 mb-4">
+              <div className="grid grid-cols-4 gap-2">
+                {FAMILY_GRID_ROLES.map(role => {
+                  const sel = selectedRole === role.id
+                  return (
+                    <button
+                      key={role.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedRole(role.id)
+                        setCustomRoleName('')
+                      }}
+                      className="py-2.5 rounded-[14px] flex flex-col items-center gap-1.5 border transition-all"
                       style={{
-                        background: selectedRole === role.id ? '#FFF0F5' : '#FAFAFA',
-                        borderColor: selectedRole === role.id ? '#E91E63' : '#F0E8FF',
+                        background: sel ? '#FFF0F5' : '#FAFAFA',
+                        borderColor: sel ? '#E91E63' : '#F0E8FF',
                       }}>
-                      <span className="text-[24px]">{role.emoji}</span>
-                      <span className="text-[12px] font-semibold"
-                        style={{ color: selectedRole === role.id ? '#E91E63' : '#1A0A2E' }}>
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-[18px]"
+                        style={{ background: role.circleBg }}>
+                        {role.emoji}
+                      </div>
+                      <span
+                        className="text-[11px] font-semibold leading-tight text-center px-0.5"
+                        style={{ color: sel ? '#E91E63' : '#1A0A2E' }}>
                         {role.label}
                       </span>
                     </button>
-                  ))}
-                </div>
-              )}
+                  )
+                })}
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole('other')}
+                  className="py-2.5 rounded-[14px] flex flex-col items-center justify-center gap-0.5 border-2 border-dashed transition-all min-h-[88px]"
+                  style={{
+                    borderColor: selectedRole === 'other' ? '#E91E63' : '#D8C8E8',
+                    background: selectedRole === 'other' ? '#FFF0F5' : '#FAFAFA',
+                  }}>
+                  <span className="text-[22px] font-light leading-none" style={{ color: '#B0A0C8' }}>
+                    +
+                  </span>
+                  <span
+                    className="text-[10px] font-semibold text-center leading-tight px-0.5"
+                    style={{ color: selectedRole === 'other' ? '#E91E63' : '#6B5B8C' }}>
+                    其他角色
+                  </span>
+                </button>
+              </div>
             </div>
 
-            <button type="button" onClick={handleRoleNext}
-              disabled={!selectedRole}
+            {selectedRole === 'other' && (
+              <div className="mb-4">
+                <div className="text-[12px] font-semibold text-[#6B5B8C] mb-2">填写角色称呼</div>
+                <input
+                  type="text"
+                  value={customRoleName}
+                  onChange={e => setCustomRoleName(e.target.value)}
+                  placeholder="例如：小姨、哥哥、保姆"
+                  maxLength={16}
+                  autoFocus
+                  className="w-full h-11 px-3.5 rounded-[14px] border-2 border-[#F0E8FF] bg-white text-[15px] text-[#1A0A2E] placeholder:text-[#C4B8D8] outline-none focus:border-[#7B3FD4]"
+                />
+              </div>
+            )}
+
+            <div
+              className="flex items-center gap-2 rounded-[12px] px-3 py-2.5 mb-4 border border-[#F8BBD0]"
+              style={{ background: '#FFF5F8' }}>
+              <span className="text-[16px] flex-shrink-0">🎙️</span>
+              <span className="text-[11px] text-[#880E4F] leading-snug">
+                会员可克隆 <span className="font-black">2 个</span> 不同音色，永久保存
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleRoleNext}
+              disabled={!roleStepCanProceed}
               className="w-full h-12 rounded-full text-white font-bold text-[15px] transition-all"
-              style={{ background: selectedRole ? 'linear-gradient(135deg,#7B3FD4,#E91E63)' : '#E0D8F0' }}>
+              style={{
+                background: roleStepCanProceed ? 'linear-gradient(135deg,#7B3FD4,#E91E63)' : '#E0D8F0',
+              }}>
               下一步
             </button>
           </div>
@@ -842,7 +921,7 @@ export default function VoiceClonePage() {
         {step === 'record' && (
           <RecordStep
             sentences={SENTENCES}
-            roleLabel={ALL_ROLES.find(r => r.id === selectedRole)?.label ?? '妈妈'}
+            roleLabel={roleLabel || '妈妈'}
             onComplete={() => {
               setStep('processing')
               setTimeout(() => setStep('done'), 3000)

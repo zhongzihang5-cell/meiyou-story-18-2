@@ -47,12 +47,36 @@ function PlayerContent({ id }: { id: string }) {
   const titleOverride = safeDecodeParam(searchParams.get('title'))
   const emojiOverride = safeDecodeParam(searchParams.get('emoji'))
   const bgOverride = safeDecodeParam(searchParams.get('bg'))
+  const charsParam = safeDecodeParam(searchParams.get('chars')) ?? ''
+  const themeParam = safeDecodeParam(searchParams.get('theme')) ?? ''
+  const msgParam = safeDecodeParam(searchParams.get('msg')) ?? ''
+  const isAiStory = id === 'ai-story'
+
   const story = {
     ...baseStory,
     ...(titleOverride != null ? { title: titleOverride } : {}),
     ...(emojiOverride != null ? { cover_emoji: emojiOverride } : {}),
     ...(bgOverride != null ? { cover_bg: bgOverride } : {}),
   }
+
+  const firstCharName = charsParam.split('和')[0] || '小朋友'
+  const AI_SUBTITLES = charsParam
+    ? [
+        { start: 0, end: 6, text: `从前，有一个叫${firstCharName}的小朋友。` },
+        { start: 7, end: 13, text: `${firstCharName}非常喜欢${themeParam}。` },
+        { start: 14, end: 20, text: `有一天，${charsParam}决定一起去探险。` },
+        { start: 21, end: 27, text: '他们走啊走，遇到了好多有趣的事情。' },
+        { start: 28, end: 34, text: `经历了这一切，${firstCharName}学到了很多。` },
+        {
+          start: 35,
+          end: 41,
+          text: msgParam ? `妈妈说：${msgParam}。` : '这真是美好的一天啊！',
+        },
+        { start: 42, end: 48, text: '故事讲完啦，宝宝要乖乖睡觉～' },
+      ]
+    : SUBTITLES
+
+  const subtitleList = isAiStory ? AI_SUBTITLES : SUBTITLES
 
   const colId = searchParams.get('col')
   const fromParam = searchParams.get('from')
@@ -75,7 +99,7 @@ function PlayerContent({ id }: { id: string }) {
   const lastRef = useRef<number>()
 
   const [subtitleMode, setSubtitleMode] = useState(false)
-  const currentSub = SUBTITLES.find(s => currentSec >= s.start && currentSec <= s.end)
+  const currentSub = subtitleList.find(s => currentSec >= s.start && currentSec <= s.end)
 
   const [voiceMode, setVoiceMode] = useState<'default'|'original'>('default')
   const [showVipSheet, setShowVipSheet] = useState(false)
@@ -143,6 +167,7 @@ function PlayerContent({ id }: { id: string }) {
   const cycleMode = () => setPlayMode(m => m==='sequence'?'shuffle':m==='shuffle'?'repeat':'sequence')
 
   const goPrev = () => {
+    if (isAiStory) return
     const colParam = colId ? `?col=${colId}` : ''
     if (playMode === 'shuffle') {
       router.push(`/player/${COLLECTION_STORIES[Math.floor(Math.random() * COLLECTION_STORIES.length)].id}${colParam}`)
@@ -152,6 +177,7 @@ function PlayerContent({ id }: { id: string }) {
   }
 
   const goNext = () => {
+    if (isAiStory && playMode !== 'repeat') return
     const colParam = colId ? `?col=${colId}` : ''
     if (playMode === 'repeat') { setCurrentSec(0); setPlaying(true) }
     else if (playMode === 'shuffle') {
