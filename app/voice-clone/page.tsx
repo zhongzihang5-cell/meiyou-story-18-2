@@ -821,7 +821,7 @@ export default function VoiceClonePage() {
               style={{ background: '#FFF5F8' }}>
               <span className="text-[16px] flex-shrink-0">🎙️</span>
               <span className="text-[11px] text-[#880E4F] leading-snug">
-                会员可克隆 <span className="font-black">2 个</span> 不同音色，永久保存
+                会员可克隆<span className="font-black">3个</span>不同音色，永久保存
               </span>
             </div>
 
@@ -847,16 +847,16 @@ export default function VoiceClonePage() {
                   <div className="text-[18px] font-black text-[#1A0A2E] mb-1">
                     用{roleLabel}的声音<br/>陪伴宝宝入睡
                   </div>
-                  <div className="text-[13px] text-[#B0A0C8]">只需录制15秒，AI帮你永久保存</div>
+                  <div className="text-[13px] text-[#B0A0C8]">只需录制约2分钟，AI帮你永久保存</div>
                 </div>
 
                 <div className="bg-white rounded-[16px] border border-[#F0E8FF] p-4 mb-4">
                   <div className="text-[13px] font-bold text-[#1A0A2E] mb-3">开通会员，解锁声音克隆</div>
                   {[
-                    { icon: '🌙', title: '宝宝睡得更香', desc: '听到爸妈真实声音，安全感更强' },
-                    { icon: '⚡', title: '15秒完成录制', desc: 'AI克隆准确率97%，效果逼真' },
-                    { icon: '📚', title: '全部200个故事', desc: '所有故事均可一键换成你的声音' },
-                    { icon: '💾', title: '永久保存', desc: '克隆一次，随时使用，永不过期' },
+                    { icon: '🌙', title: '宝宝可以睡得更香', desc: '听到爸妈真实声音，安全感更强' },
+                    { icon: '⚡', title: '2分钟完成录制', desc: '跟着提示轻声朗读，完成音色克隆' },
+                    { icon: '📚', title: '0～6岁故事全库畅听', desc: '库内故事均可一键换成你的声音' },
+                    { icon: '💾', title: '已换声故事永久保存', desc: '克隆一次，随时使用，永不过期' },
                   ].map(item => (
                     <div key={item.title} className="flex items-start gap-3 py-2.5 border-b border-[#F9F0FF] last:border-0">
                       <span className="text-[20px] flex-shrink-0">{item.icon}</span>
@@ -888,12 +888,12 @@ export default function VoiceClonePage() {
                 <div className="text-center mb-5">
                   <div className="text-[48px] mb-2">{roleEmoji}</div>
                   <div className="text-[16px] font-bold text-[#1A0A2E]">准备录制{roleLabel}的声音</div>
-                  <div className="text-[12px] text-[#B0A0C8] mt-1">共10句话，约1分钟</div>
+                  <div className="text-[12px] text-[#B0A0C8] mt-1">共10句话，约2分钟</div>
                 </div>
 
                 <div className="flex flex-col gap-3 mb-6">
                   {[
-                    { icon: '🔇', title: '保持环境安静', desc: '关闭电视、空调，找个安静的房间' },
+                    { icon: '🔇', title: '保持环境安静', desc: '关闭电视等杂音，找个安静的房间或角落' },
                     { icon: '📱', title: '手机距离适中', desc: '距离15-20cm，正常音量说话' },
                     { icon: '🗣️', title: '用讲故事的语气', desc: '温柔舒缓，克隆效果更逼真' },
                     { icon: '📝', title: '完整朗读每一句', desc: '不要中途停顿，读错了可以重录' },
