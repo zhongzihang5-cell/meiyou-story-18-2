@@ -10,6 +10,7 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
       { protocol: 'https', hostname: '**.supabase2.aidap-global.cn-beijing.volces.com' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
   },
 }

@@ -390,7 +390,7 @@ function PlayerContent({ id }: { id: string }) {
               {[
                 ['可克隆音色', '会员最多3种'],
                 ['适用故事', '0～6岁故事全库畅听'],
-                ['定制故事', 'AI生成每月30次'],
+                ['定制故事', '每月30次宝宝故事定制'],
                 ['保存时长', '永久有效'],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between py-2 border-b border-[#F0E8FF] last:border-0">

@@ -66,7 +66,8 @@ function RecordStep({
 }: {
   sentences: string[]
   roleLabel: string
-  onComplete: () => void
+  /** 传入合并后的本地试听 blob URL（与录制页 revoke 无关，由父组件释放） */
+  onComplete: (previewObjectUrl: string | null) => void
 }) {
   const [recordedBlobs, setRecordedBlobs] = useState<Record<number, string>>({})
   const [recordingIndex, setRecordingIndex] = useState<number | null>(null)
@@ -608,7 +609,24 @@ function RecordStep({
       {allDone && (
         <button
           type="button"
-          onClick={onComplete}
+          onClick={async () => {
+            const blobParts: Blob[] = []
+            try {
+              for (let i = 0; i < sentences.length; i++) {
+                const u = recordedBlobs[i]
+                if (u) blobParts.push(await fetch(u).then(r => r.blob()))
+              }
+            } catch {
+              onComplete(null)
+              return
+            }
+            if (blobParts.length === 0) {
+              onComplete(null)
+              return
+            }
+            const merged = new Blob(blobParts, { type: blobParts[0].type || 'audio/webm' })
+            onComplete(URL.createObjectURL(merged))
+          }}
           style={{
             width: '100%',
             height: 50,
@@ -635,6 +653,21 @@ export default function VoiceClonePage() {
   const [selectedRole, setSelectedRole] = useState<Role>(null)
   const [customRoleName, setCustomRoleName] = useState('')
   const [prepareUnlocked, setPrepareUnlocked] = useState(false)
+  /** 克隆完成页「试听」用，在完成录制时从各句录音复制而来，避免子组件卸载 revoke 后失效 */
+  const [clonePreviewUrl, setClonePreviewUrl] = useState<string | null>(null)
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null)
+  const clonePreviewUrlRef = useRef<string | null>(null)
+
+  clonePreviewUrlRef.current = clonePreviewUrl
+
+  useEffect(() => {
+    return () => {
+      const u = clonePreviewUrlRef.current
+      if (u) URL.revokeObjectURL(u)
+      previewAudioRef.current?.pause()
+      previewAudioRef.current = null
+    }
+  }, [])
 
   const showMemberPrepare = IS_MEMBER || prepareUnlocked
 
@@ -669,10 +702,41 @@ export default function VoiceClonePage() {
   }
 
   const resetFlow = () => {
+    if (clonePreviewUrl) URL.revokeObjectURL(clonePreviewUrl)
+    setClonePreviewUrl(null)
+    previewAudioRef.current?.pause()
+    previewAudioRef.current = null
     setStep('role')
     setSelectedRole(null)
     setCustomRoleName('')
     setPrepareUnlocked(false)
+  }
+
+  const toggleClonePreview = () => {
+    if (!clonePreviewUrl) {
+      alert('暂无可播放的录音')
+      return
+    }
+    const cur = previewAudioRef.current
+    if (cur && !cur.paused) {
+      cur.pause()
+      cur.currentTime = 0
+      previewAudioRef.current = null
+      return
+    }
+    if (cur) {
+      cur.pause()
+      previewAudioRef.current = null
+    }
+    const a = new Audio(clonePreviewUrl)
+    previewAudioRef.current = a
+    a.onended = () => {
+      previewAudioRef.current = null
+    }
+    a.play().catch(() => {
+      previewAudioRef.current = null
+      alert('无法播放，请检查浏览器是否允许音频播放')
+    })
   }
 
   const roleMeta = ALL_ROLES.find(r => r.id === selectedRole)
@@ -922,7 +986,11 @@ export default function VoiceClonePage() {
           <RecordStep
             sentences={SENTENCES}
             roleLabel={roleLabel || '妈妈'}
-            onComplete={() => {
+            onComplete={previewUrl => {
+              setClonePreviewUrl(prev => {
+                if (prev) URL.revokeObjectURL(prev)
+                return previewUrl
+              })
               setStep('processing')
               setTimeout(() => setStep('done'), 3000)
             }}
@@ -959,7 +1027,10 @@ export default function VoiceClonePage() {
                   <div className="text-[14px] font-bold text-[#1A0A2E]">{roleLabel}的声音</div>
                   <div className="text-[11px] text-[#B0A0C8]">克隆完成 · 今天</div>
                 </div>
-                <button type="button" className="px-3 py-1.5 rounded-full text-[12px] font-bold border border-[#E91E63] text-[#E91E63]">
+                <button
+                  type="button"
+                  onClick={toggleClonePreview}
+                  className="px-3 py-1.5 rounded-full text-[12px] font-bold border border-[#E91E63] text-[#E91E63] active:opacity-80">
                   试听
                 </button>
               </div>
