@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { markVoiceSlotDone, roleToVoiceSlot, sessionAudioKey } from '@/lib/voiceSlots'
+import { markVoiceSlotDone, roleToVoiceSlot, sessionAudioKey, VOICE_SLOT_TOTAL } from '@/lib/voiceSlots'
 
 type Step = 'role' | 'prepare' | 'record' | 'processing' | 'done'
 type Role =
@@ -928,7 +928,7 @@ function VoiceCloneContent() {
               style={{ background: '#FFF5F8' }}>
               <span className="text-[16px] flex-shrink-0">🎙️</span>
               <span className="text-[11px] text-[#880E4F] leading-snug">
-                会员可克隆<span className="font-black">3个</span>不同音色，永久保存
+                会员可克隆<span className="font-black">{VOICE_SLOT_TOTAL}个</span>不同音色，永久保存
               </span>
             </div>
 

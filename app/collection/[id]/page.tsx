@@ -211,7 +211,7 @@ const COLLECTIONS: Record<string, {
     id: 'e1', title: '小兔子交朋友', emoji: '🐰',
     bg: 'linear-gradient(135deg,#EDE7F6,#7B3FD4)',
     desc: '学会打招呼、分享与等待，社交第一步从交朋友开始。',
-    eps: 12, tag: '全龄 · 情绪社交',
+    eps: 12, tag: '全龄 · 爱与情感',
     episodes: Array.from({ length: 12 }, (_, i) => ({
       id: `ep-e1-${i + 1}`, title: `小兔子交朋友 · 第${i + 1}集`, duration_sec: 145 + i * 16,
     })),
@@ -220,7 +220,7 @@ const COLLECTIONS: Record<string, {
     id: 'e2', title: '我有点害怕', emoji: '🌟',
     bg: 'linear-gradient(135deg,#FFF8E1,#FF8F00)',
     desc: '接纳害怕的情绪，给宝宝安全感与面对未知的勇气。',
-    eps: 10, tag: '全龄 · 情绪社交',
+    eps: 10, tag: '全龄 · 爱与情感',
     episodes: Array.from({ length: 10 }, (_, i) => ({
       id: `ep-e2-${i + 1}`, title: `我有点害怕 · 第${i + 1}集`, duration_sec: 138 + i * 20,
     })),
@@ -229,7 +229,7 @@ const COLLECTIONS: Record<string, {
     id: 'e3', title: '分享真快乐', emoji: '🎁',
     bg: 'linear-gradient(135deg,#FCE4EC,#E91E63)',
     desc: '分享玩具与心情，体会「给予」带来的双倍快乐。',
-    eps: 8, tag: '全龄 · 情绪社交',
+    eps: 8, tag: '全龄 · 爱与情感',
     episodes: Array.from({ length: 8 }, (_, i) => ({
       id: `ep-e3-${i + 1}`, title: `分享真快乐 · 第${i + 1}集`, duration_sec: 130 + i * 24,
     })),
@@ -238,7 +238,7 @@ const COLLECTIONS: Record<string, {
     id: 'e4', title: '我爱我的家', emoji: '🏠',
     bg: 'linear-gradient(135deg,#E8F5E9,#2E7D32)',
     desc: '家人之间的爱与陪伴，帮宝宝建立归属感与情感纽带。',
-    eps: 14, tag: '全龄 · 情绪社交',
+    eps: 14, tag: '全龄 · 爱与情感',
     episodes: Array.from({ length: 14 }, (_, i) => ({
       id: `ep-e4-${i + 1}`, title: `我爱我的家 · 第${i + 1}集`, duration_sec: 142 + i * 14,
     })),
@@ -248,8 +248,27 @@ const COLLECTIONS: Record<string, {
 
 const DEFAULT_COLLECTION = COLLECTIONS['001']
 
+/** 故事/动画等非儿歌合集：前 N 集可试听，其余需会员 */
+const PREVIEW_EPISODE_COUNT = 3
+
 function fmt(s: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+function isNurseryCollection(colId: string) {
+  return Object.prototype.hasOwnProperty.call(NURSERY_COLLECTIONS, colId)
+}
+
+function EpisodeLockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z"
+      />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  )
 }
 
 function CollectionPageContent({ id }: { id: string }) {
@@ -260,7 +279,10 @@ function CollectionPageContent({ id }: { id: string }) {
   const fromQ = playerFromSuffix(fromParam)
 
   const [colFaved, setColFaved] = useState(false)
+  const [showPaywall, setShowPaywall] = useState(false)
   const [, forceUpdate] = useState(0)
+
+  const applyEpisodePaywall = !isNurseryCollection(col.id)
 
   useEffect(() => {
     setColFaved(isFavorited(`col-${col.id}`))
@@ -282,7 +304,7 @@ function CollectionPageContent({ id }: { id: string }) {
   }
 
   return (
-    <div className="phone-shell">
+    <div className="phone-shell relative">
       {/* Status */}
       <div className="h-12 px-7 flex justify-between items-center pt-3 flex-shrink-0"
         style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
@@ -333,31 +355,97 @@ function CollectionPageContent({ id }: { id: string }) {
         </div>
 
         <div className="px-4 flex flex-col gap-2 pb-8">
-          {col.episodes.map((ep, i) => (
-            <div key={ep.id}
-              onClick={() => router.push(`/player/${ep.id}?col=${col.id}&title=${encodeURIComponent(ep.title)}${fromQ}`)}
-              className="bg-white rounded-2xl px-4 py-3 flex items-center gap-3 border border-[#F0E8FF] cursor-pointer active:scale-[0.98] transition-transform">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] font-bold"
-                style={{
-                  background: i === 0 ? 'linear-gradient(135deg,#7B3FD4,#E91E63)' : '#F0E8FF',
-                  color: i === 0 ? '#fff' : '#B0A0C8',
-                }}>
-                {i + 1}
+          {col.episodes.map((ep, i) => {
+            const unlocked = !applyEpisodePaywall || i < PREVIEW_EPISODE_COUNT
+            const highlight = applyEpisodePaywall ? unlocked : i === 0
+
+            return (
+              <div
+                key={ep.id}
+                onClick={() => {
+                  if (unlocked) {
+                    router.push(`/player/${ep.id}?col=${col.id}&title=${encodeURIComponent(ep.title)}${fromQ}`)
+                  } else {
+                    setShowPaywall(true)
+                  }
+                }}
+                className="relative rounded-2xl border border-[#F0E8FF] cursor-pointer active:scale-[0.98] transition-transform overflow-hidden">
+                <div className="relative flex items-center gap-3 px-4 py-3 bg-white">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] font-bold"
+                    style={{
+                      background: highlight ? 'linear-gradient(135deg,#7B3FD4,#E91E63)' : '#F0E8FF',
+                      color: highlight ? '#fff' : '#B0A0C8',
+                    }}>
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0 min-h-[40px]">
+                    <div
+                      className={`text-[13px] font-semibold truncate ${unlocked ? 'text-[#1A0A2E]' : 'text-[#B0A0C8]'}`}>
+                      {ep.title}
+                    </div>
+                    <div className="text-[11px] text-[#B0A0C8] mt-0.5">{fmt(ep.duration_sec)}</div>
+                  </div>
+                  <div className="flex flex-col items-center justify-center gap-1 flex-shrink-0 w-9 z-[2]">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center"
+                      style={{
+                        background: unlocked ? (highlight ? 'linear-gradient(135deg,#F06292,#9C6FD6)' : '#F0E8FF') : '#EDE7F6',
+                      }}>
+                      {unlocked ? (
+                        <svg className="w-3 h-3 ml-0.5" viewBox="0 0 24 24" fill={highlight ? 'white' : '#B0A0C8'}>
+                          <polygon points="5,3 19,12 5,21" />
+                        </svg>
+                      ) : (
+                        <EpisodeLockIcon className="text-[#B0A0C8]" />
+                      )}
+                    </div>
+                    {applyEpisodePaywall && unlocked && i < PREVIEW_EPISODE_COUNT && (
+                      <span className="bg-[#22C55E] text-white text-[7px] font-bold px-1 py-px rounded leading-none shadow-sm whitespace-nowrap pointer-events-none">
+                        可试听
+                      </span>
+                    )}
+                  </div>
+                  {applyEpisodePaywall && !unlocked && (
+                    <div
+                      className="absolute inset-0 z-[1] rounded-2xl pointer-events-none"
+                      style={{ background: 'rgba(200, 190, 220, 0.22)' }}
+                    />
+                  )}
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold text-[#1A0A2E] truncate">{ep.title}</div>
-                <div className="text-[11px] text-[#B0A0C8] mt-0.5">{fmt(ep.duration_sec)}</div>
-              </div>
-              <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: i === 0 ? 'linear-gradient(135deg,#F06292,#9C6FD6)' : '#F0E8FF' }}>
-                <svg className="w-3 h-3 ml-0.5" viewBox="0 0 24 24" fill={i === 0 ? 'white' : '#B0A0C8'}>
-                  <polygon points="5,3 19,12 5,21"/>
-                </svg>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
+
+      {showPaywall && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowPaywall(false)}>
+          <div
+            className="w-full max-w-md bg-white rounded-t-[28px] px-5 pt-6 pb-10"
+            onClick={e => e.stopPropagation()}>
+            <div className="w-9 h-1 bg-[#E0D8F0] rounded-full mx-auto mb-5" />
+            <div className="text-center mb-5">
+              <div className="text-[32px] mb-2">🔓</div>
+              <div className="text-[17px] font-black text-[#1A0A2E] mb-1">开通会员解锁全部单集</div>
+              <div className="text-[12px] text-[#6B5B8C]">本合集共{col.episodes.length}集 · 开通后可完整收听</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowPaywall(false)}
+              className="w-full h-[52px] rounded-full text-white font-extrabold text-[15px] mb-3"
+              style={{ background: 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
+              立即开通会员
+            </button>
+            <button type="button" onClick={() => setShowPaywall(false)} className="w-full h-10 text-[#B0A0C8] text-[13px]">
+              暂不开通
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -5,6 +5,8 @@ import { getStoryById, MOCK_STORIES } from '@/lib/mockData'
 import { toggleFavorite, isFavorited, subscribe } from '@/lib/favorites'
 import { isCollectionFromParam, pathAfterCollectionBack } from '@/lib/collectionNav'
 import { NURSERY_COLLECTIONS } from '@/lib/nurseryCollections'
+import VoiceSwitcher from '@/components/VoiceSwitcher'
+import { VOICE_SLOT_TOTAL } from '@/lib/voiceSlots'
 
 const COLLECTION_STORIES = MOCK_STORIES.slice(0, 12)
 
@@ -87,7 +89,6 @@ function PlayerContent({ id }: { id: string }) {
   /** 儿歌合集：不支持克隆 / 原声切换 */
   const isNurseryPlayer =
     fromParam === 'nursery' || (!!colId && Object.prototype.hasOwnProperty.call(NURSERY_COLLECTIONS, colId))
-  const isVoiceGuided = id === '003' && !isNurseryPlayer
   const hasParentVoiceTracks = id === STAR_TALK_STORY_ID && !isNurseryPlayer
 
   const handleBack = () => {
@@ -109,9 +110,7 @@ function PlayerContent({ id }: { id: string }) {
   const [subtitleMode, setSubtitleMode] = useState(false)
   const currentSub = subtitleList.find(s => currentSec >= s.start && currentSec <= s.end)
 
-  const [voiceMode, setVoiceMode] = useState<'default' | 'original' | 'mom' | 'dad'>('default')
   const [showVipSheet, setShowVipSheet] = useState(false)
-  const [showBubble, setShowBubble] = useState(id === '003' && !isNurseryPlayer)
 
   const [showTimer, setShowTimer] = useState(false)
   const [showPlaylist, setShowPlaylist] = useState(false)
@@ -142,7 +141,6 @@ function PlayerContent({ id }: { id: string }) {
     setCurrentSec(0)
     setPlaying(false)
     setSubtitleMode(false)
-    setVoiceMode('default')
   }, [id])
 
   useEffect(() => {
@@ -194,16 +192,6 @@ function PlayerContent({ id }: { id: string }) {
     } else if (currentIndex < COLLECTION_STORIES.length - 1) {
       router.push(`/player/${COLLECTION_STORIES[currentIndex + 1].id}${colParam}`)
     }
-  }
-
-  const pickVoice = (mode: 'default' | 'original' | 'mom' | 'dad') => {
-    if (hasParentVoiceTracks) {
-      setVoiceMode(mode)
-      return
-    }
-    if (mode === 'mom' || mode === 'dad') return
-    if (mode === 'original' && voiceMode === 'default') setShowVipSheet(true)
-    else setVoiceMode(mode)
   }
 
   const modeIcon = playMode === 'sequence' ? (
@@ -275,11 +263,11 @@ function PlayerContent({ id }: { id: string }) {
         )}
       </div>
 
-      {/* 标题 + 收藏 + 声音模式 */}
-      <div className="text-center px-7 mt-7 relative z-10 flex-shrink-0">
-        <div className="flex items-center justify-center gap-2 mb-1">
-          <div className="text-[18px] font-black text-white truncate max-w-[220px]">{story.title}</div>
-          <button onClick={handleFav} className="flex-shrink-0 transition-transform active:scale-90">
+      {/* 标题 + 收藏 + 声音模式（标题与副标题左对齐） */}
+      <div className="text-left px-7 mt-7 relative z-10 flex-shrink-0">
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <div className="text-[18px] font-black text-white leading-snug min-w-0 flex-1">{story.title}</div>
+          <button type="button" onClick={handleFav} className="flex-shrink-0 mt-0.5 transition-transform active:scale-90" aria-label={faved ? '取消收藏' : '收藏'}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill={faved ? '#F06292' : 'none'} stroke={faved ? '#F06292' : 'rgba(255,255,255,0.5)'} strokeWidth="2">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
             </svg>
@@ -288,51 +276,13 @@ function PlayerContent({ id }: { id: string }) {
         <div className="text-[12px] text-white/50 mb-3">{story.sub_category} · {story.age_label}</div>
 
         {!isNurseryPlayer && (
-          hasParentVoiceTracks ? (
-            <div className="inline-flex max-w-full rounded-full overflow-hidden border border-white/15" style={{ background: 'rgba(255,255,255,0.08)' }}>
-              <button type="button" onClick={() => pickVoice('default')} className="px-2.5 py-2 text-[10px] font-bold transition-all flex-shrink-0"
-                style={{
-                  background: voiceMode === 'default' ? 'rgba(255,255,255,0.22)' : 'transparent',
-                  color: voiceMode === 'default' ? '#fff' : 'rgba(255,255,255,0.45)',
-                }}>
-                默认音色
-              </button>
-              <button type="button" onClick={() => pickVoice('mom')} className="px-2.5 py-2 text-[10px] font-bold transition-all flex-shrink-0 border-l border-white/10"
-                style={{
-                  background: voiceMode === 'mom' ? 'rgba(255,182,193,0.35)' : 'transparent',
-                  color: voiceMode === 'mom' ? '#FFE4EC' : 'rgba(255,255,255,0.45)',
-                }}>
-                妈妈原声
-              </button>
-              <button type="button" onClick={() => pickVoice('dad')} className="px-2.5 py-2 text-[10px] font-bold transition-all flex-shrink-0 border-l border-white/10"
-                style={{
-                  background: voiceMode === 'dad' ? 'rgba(144,202,249,0.35)' : 'transparent',
-                  color: voiceMode === 'dad' ? '#E3F2FD' : 'rgba(255,255,255,0.45)',
-                }}>
-                爸爸原声
-              </button>
-            </div>
-          ) : (
-            <div className="inline-flex rounded-full overflow-hidden border border-white/15" style={{ background: 'rgba(255,255,255,0.08)' }}>
-              <button type="button" onClick={() => pickVoice('default')} className="px-4 py-2 text-[11px] font-bold transition-all"
-                style={{ background: voiceMode === 'default' ? 'rgba(255,255,255,0.22)' : 'transparent', color: voiceMode === 'default' ? '#fff' : 'rgba(255,255,255,0.4)' }}>
-                默认音色
-              </button>
-              <button type="button" onClick={() => pickVoice('original')} className="px-4 py-2 text-[11px] font-bold flex items-center gap-1 transition-all"
-                style={{ background: voiceMode === 'original' ? 'rgba(255,255,255,0.22)' : 'transparent', color: voiceMode === 'original' ? '#FFE566' : 'rgba(255,255,255,0.4)' }}>
-                🎙️ 原声讲述
-                <span className="text-[9px] bg-[#E91E63] text-white px-1.5 py-0.5 rounded-full">VIP</span>
-              </button>
-            </div>
-          )
-        )}
-
-        {isVoiceGuided && showBubble && (
-          <div className="mt-2 relative inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold text-white" style={{ background: 'rgba(233,30,99,0.9)' }}>
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{ background: 'rgba(233,30,99,0.9)' }}/>
-            👆 点击切换爸妈原声讲故事
-            <button onClick={e => { e.stopPropagation(); setShowBubble(false) }} className="text-white/60 ml-0.5">✕</button>
-          </div>
+          <VoiceSwitcher
+            key={id}
+            isVip={hasParentVoiceTracks}
+            onUnlock={() => setShowVipSheet(true)}
+            onRecord={() => router.push('/voice-clone')}
+            onManage={() => router.push('/my-voices')}
+          />
         )}
       </div>
 
@@ -371,34 +321,6 @@ function PlayerContent({ id }: { id: string }) {
         </button>
       </div>
 
-      {/* 换声模块（仅引导故事）*/}
-      {isVoiceGuided && (
-        <div className="mx-4 mt-3 relative z-10 flex-shrink-0">
-          <div className="rounded-[18px] overflow-hidden" style={{ background:'linear-gradient(135deg,rgba(123,63,212,0.55),rgba(233,30,99,0.45))', backdropFilter:'blur(12px)', border:'1px solid rgba(255,255,255,0.18)' }}>
-            <div className="p-4">
-              <div className="flex items-start gap-3 mb-3">
-                <div className="text-[26px] flex-shrink-0">👨‍👩‍👧</div>
-                <div>
-                  <div className="text-[13px] font-black text-white mb-0.5">换成你的声音讲这个故事</div>
-                  <div className="text-[11px] text-white/65 leading-relaxed">录制15秒，AI克隆你的声音。宝宝听到爸妈的声音，睡得更安心。</div>
-                </div>
-              </div>
-              <div className="flex gap-2 mb-3">
-                {[['🎤','录音15秒'],['🤖','AI克隆'],['✨','立即生成']].map(([icon,label]) => (
-                  <div key={label} className="flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl" style={{ background:'rgba(255,255,255,0.1)' }}>
-                    <span className="text-[14px]">{icon}</span>
-                    <span className="text-[9px] text-white/75 font-semibold">{label}</span>
-                  </div>
-                ))}
-              </div>
-              <button onClick={() => router.push('/voice-clone')} className="w-full h-10 rounded-full font-black text-[13px]" style={{ background:'linear-gradient(135deg,#fff,#f0e8ff)', color:'#7B3FD4' }}>
-                🎙️ 开始克隆我的声音
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 定时停止 */}
       {showTimer && (
         <div className="absolute inset-0 z-50 flex items-end" style={{ background:'rgba(0,0,0,0.55)', backdropFilter:'blur(4px)' }} onClick={() => setShowTimer(false)}>
@@ -430,7 +352,7 @@ function PlayerContent({ id }: { id: string }) {
             </div>
             <div className="bg-[#F8F4FF] rounded-2xl p-4 mb-5 border border-[#F0E8FF]">
               {[
-                ['可克隆音色', '会员最多3种'],
+                ['可克隆音色', `会员最多${VOICE_SLOT_TOTAL}种`],
                 ['适用故事', '0～6岁故事全库畅听'],
                 ['定制故事', '每月30次宝宝故事定制'],
                 ['保存时长', '永久有效'],

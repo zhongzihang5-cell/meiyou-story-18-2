@@ -33,6 +33,7 @@ const PLACEHOLDER_BY_FROM: Record<string, string> = {
   animation: '搜索动画',
   stories: '搜索故事',
   literacy: '搜索识字',
+  'ai-stories': '搜索故事',
 }
 
 const DEFAULT_PLACEHOLDER = '睡前故事'

@@ -24,7 +24,7 @@ const AGE_LABELS: Record<AgeGroup, string> = {
   L1: '0-6月', L2: '6-12月', L3: '1-1.5岁', L4: '1.5-2岁', L5: '2-3岁',
 }
 const CAT_LABELS: Record<Category, string> = {
-  cognition: '认知启蒙', life: '生活发展', emotion: '情绪社交',
+  cognition: '认知启蒙', life: '成长日常', emotion: '爱与情感',
   culture: '文化传承', imagination: '想象创造',
 }
 
@@ -189,8 +189,8 @@ export const AGE_OPTIONS = [
 export const CAT_OPTIONS = [
   { value: undefined, label: '全部' },
   { value: 'cognition' as Category, label: '认知启蒙', emoji: '🔍' },
-  { value: 'life' as Category, label: '生活发展', emoji: '🏠' },
-  { value: 'emotion' as Category, label: '情绪社交', emoji: '💛' },
+  { value: 'life' as Category, label: '成长日常', emoji: '🏠' },
+  { value: 'emotion' as Category, label: '爱与情感', emoji: '💛' },
   { value: 'culture' as Category, label: '文化传承', emoji: '🏮' },
   { value: 'imagination' as Category, label: '想象创造', emoji: '🌈' },
 ]

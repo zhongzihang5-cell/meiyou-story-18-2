@@ -18,7 +18,7 @@ const VOICE_STORIES: Record<string, {
   'L1': { id:'v-l1', title:'月光摇篮曲',   emoji:'🌙', bg:'linear-gradient(135deg,#1a1a3e,#4a1a6e)', scene:'睡前故事', duration:'2:22' },
   'L2': { id:'v-l2', title:'躲猫猫真好玩', emoji:'🙈', bg:'linear-gradient(135deg,#0d2137,#1a4a6e)', scene:'亲子互动', duration:'2:08' },
   'L3': { id:'v-l3', title:'小熊爱刷牙',   emoji:'🐻', bg:'linear-gradient(135deg,#2d1b4e,#6e1a4a)', scene:'生活习惯', duration:'3:12' },
-  'L4': { id:'v-l4', title:'我的好朋友',   emoji:'🤝', bg:'linear-gradient(135deg,#3e2010,#8B4513)', scene:'情绪社交', duration:'3:45' },
+  'L4': { id:'v-l4', title:'我的好朋友',   emoji:'🤝', bg:'linear-gradient(135deg,#3e2010,#8B4513)', scene:'爱与情感', duration:'3:45' },
   'L5': { id:'v-l5', title:'天为什么会下雨',emoji:'🌧️',bg:'linear-gradient(135deg,#0d3720,#1a6e4a)', scene:'认知探索', duration:'4:30' },
 }
 
@@ -108,13 +108,24 @@ export default function FeaturedPage() {
         <span className="text-sm">📶🔋</span>
       </div>
 
-      <div className="px-4 pb-0 flex gap-2 items-center flex-shrink-0 select-none touch-manipulation active:bg-[#FBF7FF]" onClick={() => router.push(`/search?from=featured&age=${encodeURIComponent(ageKey)}`)} style={{ cursor: 'pointer' }}>
-        <div className="flex-1 h-10 bg-[#F0EAF8] rounded-full flex items-center gap-2 px-4 text-[#B0A0C8] text-sm pointer-events-none">
-          <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      {/* 顶部导航栏 · 标题固定「儿歌故事」 */}
+      <div className="relative flex items-center px-4 py-2 flex-shrink-0" style={{ height: 48 }}>
+        <button type="button" onClick={() => router.push('/')}
+          className="absolute left-1 w-9 h-9 flex items-center justify-center text-[#C4B8D8] active:opacity-45"
+          aria-label="返回">
+          <svg className="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
+        <div className="w-full text-center text-[17px] font-bold text-[#1A0A2E]">
+          儿歌故事
+        </div>
+        <button type="button" onClick={() => router.push('/search')}
+          className="w-9 h-9 rounded-full flex items-center justify-center bg-[#F0EAF8] absolute right-4">
+          <svg className="w-5 h-5 text-[#7B3FD4]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
-          白噪音
-        </div>
+        </button>
       </div>
 
       <div className="flex px-4 pt-3 border-b border-[#F0F0F0] flex-shrink-0">

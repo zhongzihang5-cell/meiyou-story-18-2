@@ -78,7 +78,7 @@ const CATEGORY_DATA: Record<
     ],
   },
   life: {
-    title: '生活发展',
+    title: '成长日常',
     emoji: '🌱',
     backTab: '故事',
     backHref: '/stories',
@@ -90,7 +90,7 @@ const CATEGORY_DATA: Record<
     ],
   },
   emotion: {
-    title: '情绪社交',
+    title: '爱与情感',
     emoji: '💛',
     backTab: '故事',
     backHref: '/stories',

@@ -226,7 +226,7 @@ export default function MyVoicesPage() {
           </svg>
         </button>
         <div className="flex-1 text-center">
-          <div className="text-[16px] font-bold text-[#1A0A2E]">我的声音</div>
+          <div className="text-[16px] font-bold text-[#1A0A2E]">声音管理</div>
           <div className="text-[11px] text-[#B0A0C8] mt-0.5">
             已克隆 {doneCount} / {VOICE_SLOT_TOTAL} 个音色
           </div>
