@@ -10,7 +10,7 @@ export function isCollectionFromParam(v: string | null): v is CollectionFrom {
 export function pathAfterCollectionBack(from: string | null): string {
   if (from === 'stories') return '/stories'
   if (from === 'nursery') return '/nursery'
-  if (from === 'ai-stories') return '/ai-stories'
+  if (from === 'ai-stories') return '/ai-stories/browse'
   return '/featured'
 }
 

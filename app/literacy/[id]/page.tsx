@@ -3,7 +3,7 @@ import { LiteracyCardClient } from './LiteracyCardClient'
 
 function LiteracyFallback() {
   return (
-    <div className="phone-shell flex items-center justify-center min-h-[100dvh] bg-[#FBF7FF]">
+    <div className="phone-shell flex items-center justify-center bg-[#FBF7FF]">
       <div className="text-[#B0A0C8]">加载中...</div>
     </div>
   )

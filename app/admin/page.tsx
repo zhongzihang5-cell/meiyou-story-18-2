@@ -50,7 +50,7 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <PageHeader title="数据看板" subtitle="AI讲故事内容生产总览" />
+      <PageHeader title="数据看板" subtitle="AI亲声讲内容生产总览" />
 
       {/* 核心指标 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>

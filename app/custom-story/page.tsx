@@ -134,7 +134,7 @@ export default function CustomStoryPage() {
   }
 
   return (
-    <div className="phone-shell relative bg-[#FBF7FF] flex flex-col min-h-[844px]">
+    <div className="phone-shell relative bg-[#FBF7FF] flex flex-col">
       <div className="h-12 px-7 flex justify-between items-center pt-3 flex-shrink-0">
         <span className="text-[15px] font-bold text-[#1A0A2E]">14:56</span>
         <span className="text-sm">📶🔋</span>

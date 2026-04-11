@@ -455,7 +455,7 @@ export default function CollectionPage({ params }: { params: { id: string } }) {
   return (
     <Suspense
       fallback={
-        <div className="phone-shell flex items-center justify-center bg-[#FBF7FF] min-h-[844px]">
+        <div className="phone-shell flex items-center justify-center bg-[#FBF7FF]">
           <div className="text-[#B0A0C8] text-sm">加载中...</div>
         </div>
       }

@@ -34,7 +34,7 @@ export default function MiniPlayer() {
       <div
         style={{
           position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-          width: 390, zIndex: 100,
+          width: 'var(--phone-shell-w)', zIndex: 100,
           background: 'rgba(26,10,46,0.96)', backdropFilter: 'blur(16px)',
           borderTop: '1px solid rgba(255,255,255,0.08)',
         }}
@@ -137,7 +137,7 @@ export default function MiniPlayer() {
         >
           <div
             style={{
-              width: 390, background: '#1A0A2E',
+              width: 'var(--phone-shell-w)', background: '#1A0A2E',
               borderRadius: '24px 24px 0 0', padding: '20px 0 32px',
               maxHeight: '70vh', display: 'flex', flexDirection: 'column',
             }}

@@ -209,7 +209,7 @@ export default function MyVoicesPage() {
   const order: VoiceSlotId[] = ['mom', 'dad', 'elder']
 
   return (
-    <div className="phone-shell bg-[#FBF7FF] flex flex-col min-h-[844px] max-h-[min(844px,calc(100vh-48px))]">
+    <div className="phone-shell bg-[#FBF7FF] flex flex-col">
       <div className="h-12 px-7 flex justify-between items-center pt-3 flex-shrink-0">
         <span className="text-[15px] font-bold text-[#1A0A2E]">10:37</span>
         <span className="text-sm">📶🔋</span>

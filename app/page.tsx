@@ -14,6 +14,7 @@ import {
   Coins,
   Home,
   Mail,
+  Mic,
   Milk,
   Music,
   Pencil,
@@ -28,17 +29,17 @@ import {
 
 /**
  * 孕育首页壳：布局参考美柚，图标统一用 Lucide。
- * 仅「儿歌故事」→ /featured
+ * 「儿歌故事」→ /featured；「AI亲声讲」→ /ai-stories（落地页），故事库 → /ai-stories/browse
  */
 
 const MEIYOU_PINK = '#FF5A7A'
 const MEIYOU_PINK_D = '#FF3D6B'
 
-const GRID: { label: string; href?: string; icon: LucideIcon; bg: string }[] = [
+const GRID: { label: string; href?: string; icon: LucideIcon; bg: string; customIcon?: boolean }[] = [
   { label: '喂养记录', icon: Milk, bg: 'linear-gradient(145deg,#FBBF24,#F59E0B)' },
   { label: '在家早教', icon: BookOpen, bg: 'linear-gradient(145deg,#A78BFA,#7C3AED)' },
   { label: '儿歌故事', icon: Music, bg: 'linear-gradient(145deg,#FB923C,#EA580C)', href: '/featured' },
-  { label: 'AI讲故事', icon: Sparkles, bg: 'linear-gradient(145deg,#7B3FD4,#E91E63)', href: '/ai-stories' },
+  { label: 'AI亲声讲', icon: Sparkles, bg: 'linear-gradient(145deg,#7B3FD4,#E91E63)', href: '/ai-stories', customIcon: true },
   { label: '收起', icon: ChevronUp, bg: 'linear-gradient(145deg,#E2E8F0,#94A3B8)' },
   { label: '洗沐护理', icon: Bath, bg: 'linear-gradient(145deg,#38BDF8,#0284C7)' },
   { label: '抖音好物', icon: ShoppingBag, bg: 'linear-gradient(145deg,#FB7185,#E11D48)' },
@@ -64,11 +65,49 @@ function GridTile({ icon: Icon, bg }: { icon: LucideIcon; bg: string }) {
   )
 }
 
+/** AI亲声讲入口：仅麦克风 + 柔和渐变；VIP 偏右减少遮挡 */
+function AiQinShengGridIcon() {
+  return (
+    <div className="relative w-[48px] h-[48px] flex-shrink-0 overflow-visible">
+      <div
+        className="relative w-full h-full rounded-[12px] overflow-hidden flex items-center justify-center shadow-[0_2px_10px_rgba(56,189,248,0.22)] ring-1 ring-white/50"
+        style={{
+          background: 'linear-gradient(165deg,#F8FCFF 0%,#DBEAFE 32%,#93C5FD 70%,#60A5FA 100%)',
+        }}>
+        <div
+          className="pointer-events-none absolute inset-0 opacity-90"
+          style={{
+            background: 'radial-gradient(ellipse 80% 70% at 20% 15%, rgba(255,255,255,0.85) 0%, transparent 55%)',
+          }}
+        />
+        <div className="pointer-events-none absolute -bottom-3 -right-2 h-14 w-14 rounded-full bg-sky-300/35 blur-xl" />
+        <div className="relative z-[1] flex h-[30px] w-[30px] items-center justify-center rounded-full bg-sky-500/25 ring-1 ring-white/60 shadow-inner">
+          <Mic
+            className="h-[20px] w-[20px] text-white drop-shadow-[0_1px_2px_rgba(15,23,42,0.2)]"
+            strokeWidth={2.15}
+            aria-hidden
+          />
+        </div>
+      </div>
+      <span
+        className="absolute z-10 min-w-[30px] translate-x-2.5 -translate-y-0.5 rounded-full px-1.5 py-1 text-[9px] font-black leading-none tracking-wide text-white shadow-md"
+        style={{
+          top: 0,
+          right: 0,
+          background: 'linear-gradient(90deg,#FF6B35 0%,#FF4081 52%,#AB47BC 100%)',
+          boxShadow: '0 2px 5px rgba(255,107,53,0.42)',
+        }}>
+        VIP
+      </span>
+    </div>
+  )
+}
+
 export default function MeiyouHomePage() {
   return (
-    <div className="phone-shell bg-[#F2F2F7] flex flex-col min-h-[844px] pb-[52px] overflow-hidden">
+    <div className="phone-shell bg-[#F2F2F7] flex flex-col pb-[52px] overflow-hidden">
       <div className="relative flex-shrink-0 h-[200px]">
-        <Image src={HERO_IMG} alt="" fill className="object-cover object-[center_30%]" sizes="390px" priority />
+        <Image src={HERO_IMG} alt="" fill className="object-cover object-[center_30%]" sizes="393px" priority />
         <div
           className="absolute inset-0"
           style={{
@@ -168,7 +207,7 @@ export default function MeiyouHomePage() {
             {GRID.map(item =>
               item.href ? (
                 <Link key={item.label} href={item.href} className="flex flex-col items-center gap-1.5 active:opacity-80">
-                  <GridTile icon={item.icon} bg={item.bg} />
+                  {item.customIcon ? <AiQinShengGridIcon /> : <GridTile icon={item.icon} bg={item.bg} />}
                   <span className="text-[10px] text-[#333] text-center font-medium leading-[1.2] px-0.5">{item.label}</span>
                 </Link>
               ) : (
@@ -207,7 +246,7 @@ export default function MeiyouHomePage() {
                 今天 · 第3天
               </div>
               <div className="relative w-full mt-2 rounded-[10px] overflow-hidden bg-[#EEE] aspect-[4/3]">
-                <Image src={FEED_IMG} alt="" fill className="object-cover" sizes="320px" />
+                <Image src={FEED_IMG} alt="" fill className="object-cover" sizes="393px" />
               </div>
               <div className="text-[13px] font-bold text-[#AAA] mt-4">昨天 · 第2天</div>
             </div>
@@ -225,7 +264,7 @@ export default function MeiyouHomePage() {
         </div>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto bg-white/95 backdrop-blur-md border-t border-[#E8E8E8] flex justify-around items-start pt-2 pb-5 px-0.5 z-40">
+      <nav className="phone-shell-tabbar fixed bottom-0 left-0 right-0 mx-auto bg-white/95 backdrop-blur-md border-t border-[#E8E8E8] flex justify-around items-start pt-2 pb-5 px-0.5 z-40">
         <button type="button" className="flex flex-col items-center gap-0.5 w-[56px] relative" style={{ color: MEIYOU_PINK }}>
           <Home className="w-6 h-6" strokeWidth={2} style={{ color: MEIYOU_PINK }} />
           <span className="text-[10px] font-bold" style={{ color: MEIYOU_PINK }}>

@@ -112,7 +112,7 @@ export default function CategoryPage({ params }: { params: { slug: string } }) {
   }
 
   return (
-    <div className="phone-shell bg-[#FBF7FF] flex flex-col min-h-[844px]">
+    <div className="phone-shell bg-[#FBF7FF] flex flex-col">
       <div className="h-12 px-7 flex justify-between items-center pt-3 flex-shrink-0">
         <span className="text-[15px] font-bold text-[#1A0A2E]">21:09</span>
         <span className="text-sm">📶🔋</span>

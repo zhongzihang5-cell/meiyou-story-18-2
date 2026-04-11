@@ -11,6 +11,9 @@
   --pu-l: #EDE7F6;
   --story-bg: #FBF7FF;
   --story-border: #F0E8FF;
+  /* 与 iPhone 逻辑分辨率一致；壳体与底部条等同宽 */
+  --phone-shell-w: 393px;
+  --phone-shell-h: 852px;
 }
 
 * { -webkit-tap-highlight-color: transparent; }
@@ -23,10 +26,14 @@ body {
   padding: 24px 16px;
 }
 
-/* Mobile phone shell */
+/* Mobile phone shell — 393×852 pt（网页用 px；矮视口时高度随可视区域收缩） */
 .phone-shell {
-  width: 390px;
-  min-height: 844px;
+  box-sizing: border-box;
+  width: var(--phone-shell-w);
+  max-width: var(--phone-shell-w);
+  flex-shrink: 0;
+  height: min(var(--phone-shell-h), calc(100dvh - 48px));
+  max-height: min(var(--phone-shell-h), calc(100dvh - 48px));
   background: var(--story-bg);
   border-radius: 44px;
   overflow: hidden;
@@ -36,6 +43,12 @@ body {
     0 0 0 11px rgba(150, 110, 210, 0.22);
   display: flex;
   flex-direction: column;
+}
+
+/* 与手机壳同宽的固定底栏（首页 Tab 等） */
+.phone-shell-tabbar {
+  width: 100%;
+  max-width: var(--phone-shell-w);
 }
 
 /* Gradient text */
@@ -73,4 +86,77 @@ body {
 /* Progress bar */
 @keyframes progress-fill {
   from { width: 0%; }
+}
+
+/* AI亲声讲落地页 · 录音圈呼吸（声波为每根条独立随机，见 page rAF） */
+@keyframes ai-qinsheng-ring-breathe {
+  0%, 100% {
+    opacity: 0.28;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(1.032);
+  }
+}
+.ai-qinsheng-ring-breathe {
+  transform-box: border-box;
+  transform-origin: center;
+  animation: ai-qinsheng-ring-breathe 2.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-qinsheng-ring-breathe {
+    animation: none;
+  }
+}
+
+/* AI亲声讲麦克风 · 按住录音内圈脉冲（与落地页渐变同色） */
+@keyframes ai-qinsheng-mic-pulse {
+  0%,
+  100% {
+    box-shadow: 0 8px 28px rgba(200, 80, 128, 0.32), 0 0 0 0 rgba(232, 120, 80, 0.38);
+  }
+  50% {
+    box-shadow: 0 8px 28px rgba(200, 80, 128, 0.32), 0 0 0 14px rgba(232, 120, 80, 0);
+  }
+}
+.ai-qinsheng-mic-pressing-inner {
+  animation: ai-qinsheng-mic-pulse 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-qinsheng-mic-pressing-inner {
+    animation: none;
+  }
+}
+
+/* voice-clone · 对齐 qinsheng RecordScreen 气泡内波形与按住录音脉冲 */
+@keyframes voice-record-wave-bar {
+  from {
+    transform: scaleY(0.35);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.voice-record-wave-bar {
+  transform-origin: bottom center;
+  animation: voice-record-wave-bar 0.75s ease-in-out infinite alternate;
+}
+@keyframes voice-record-pulse-ring {
+  0%,
+  100% {
+    box-shadow: 0 6px 20px rgba(233, 30, 99, 0.35), 0 0 0 0 rgba(233, 30, 99, 0.35);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(233, 30, 99, 0.35), 0 0 0 14px rgba(233, 30, 99, 0);
+  }
+}
+.voice-record-mic-active {
+  animation: voice-record-pulse-ring 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-record-wave-bar,
+  .voice-record-mic-active {
+    animation: none;
+  }
 }
