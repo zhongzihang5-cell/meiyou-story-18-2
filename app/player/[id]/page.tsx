@@ -43,6 +43,13 @@ function safeDecodeParam(raw: string | null): string | undefined {
   }
 }
 
+/** AI 定制故事：标题/主题单行展示，防止旧链接或异常参数撑破布局 */
+function clampAiDisplayText(s: string, max: number): string {
+  const t = s.replace(/\s+/g, '').trim()
+  if (t.length <= max) return t
+  return `${t.slice(0, max - 1)}…`
+}
+
 function PlayerContent({ id }: { id: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -53,10 +60,13 @@ function PlayerContent({ id }: { id: string }) {
   const titleOverride = safeDecodeParam(searchParams.get('title'))
   const emojiOverride = safeDecodeParam(searchParams.get('emoji'))
   const bgOverride = safeDecodeParam(searchParams.get('bg'))
-  const charsParam = safeDecodeParam(searchParams.get('chars')) ?? ''
-  const themeParam = safeDecodeParam(searchParams.get('theme')) ?? ''
+  const charsParamRaw = safeDecodeParam(searchParams.get('chars')) ?? ''
+  const themeParamRaw = safeDecodeParam(searchParams.get('theme')) ?? ''
   const msgParam = safeDecodeParam(searchParams.get('msg')) ?? ''
   const isAiStory = id === 'ai-story'
+
+  const charsParam = isAiStory ? clampAiDisplayText(charsParamRaw, 14) : charsParamRaw
+  const themeParam = isAiStory ? clampAiDisplayText(themeParamRaw, 12) : themeParamRaw
 
   const story = {
     ...baseStory,
@@ -65,7 +75,9 @@ function PlayerContent({ id }: { id: string }) {
     ...(bgOverride != null ? { cover_bg: bgOverride } : {}),
   }
 
-  const firstCharName = charsParam.split('和')[0] || '小朋友'
+  const displayTitle = isAiStory ? clampAiDisplayText(story.title, 14) : story.title
+
+  const firstCharName = charsParam.split('和')[0].split('等')[0] || '小朋友'
   const AI_SUBTITLES = charsParam
     ? [
         { start: 0, end: 6, text: `从前，有一个叫${firstCharName}的小朋友。` },
@@ -129,7 +141,7 @@ function PlayerContent({ id }: { id: string }) {
     toggleFavorite({
       id,
       type: 'story',
-      title: story.title,
+      title: displayTitle,
       emoji: story.cover_emoji,
       bg: story.cover_bg,
       subtitle: `${story.category_label} · ${story.age_label}`,
@@ -229,7 +241,7 @@ function PlayerContent({ id }: { id: string }) {
           style={{ background: 'rgba(255,255,255,0.15)' }}>
           <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <div className="text-[15px] font-bold text-white flex-1 text-center mx-3 truncate">{story.title}</div>
+        <div className="text-[15px] font-bold text-white flex-1 text-center mx-3 truncate">{displayTitle}</div>
         <button onClick={() => setShowTimer(true)}
           className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
           style={{ background: 'rgba(255,255,255,0.15)' }}>
@@ -266,7 +278,7 @@ function PlayerContent({ id }: { id: string }) {
       {/* 标题 + 收藏 + 声音模式（标题与副标题左对齐） */}
       <div className="text-left px-7 mt-7 relative z-10 flex-shrink-0">
         <div className="flex items-start justify-between gap-3 mb-1">
-          <div className="text-[18px] font-black text-white leading-snug min-w-0 flex-1">{story.title}</div>
+          <div className="text-[18px] font-black text-white leading-snug min-w-0 flex-1 truncate">{displayTitle}</div>
           <button type="button" onClick={handleFav} className="flex-shrink-0 mt-0.5 transition-transform active:scale-90" aria-label={faved ? '取消收藏' : '收藏'}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill={faved ? '#F06292' : 'none'} stroke={faved ? '#F06292' : 'rgba(255,255,255,0.5)'} strokeWidth="2">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
