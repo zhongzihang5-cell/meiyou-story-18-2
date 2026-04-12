@@ -11,6 +11,7 @@ export function pathAfterCollectionBack(from: string | null): string {
   if (from === 'stories') return '/stories'
   if (from === 'nursery') return '/nursery'
   if (from === 'ai-stories') return '/ai-stories/browse'
+  if (from === 'ai-stories-home') return '/ai-stories/home'
   return '/featured'
 }
 

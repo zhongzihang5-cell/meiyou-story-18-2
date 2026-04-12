@@ -26,12 +26,12 @@ export function NightSkyDecor() {
   const biteCx = mx + 10
   const biteCy = my - 4
 
-  const sx = 393 / 390
+  const sx = 375 / 390
 
   return (
     <svg
       className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
-      viewBox="0 0 393 320"
+      viewBox="0 0 375 320"
       preserveAspectRatio="xMidYMin slice"
       aria-hidden>
       <g transform={`scale(${sx}, 1)`}>

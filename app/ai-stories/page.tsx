@@ -169,26 +169,27 @@ function SoundWaveBanner() {
 }
 
 /**
- * AI亲声讲落地页 · 深色沉浸 / 睡前仪式感
+ * AI亲声讲落地页 · 分层紫靛渐变 + 底部暖光点缀，与 benefits 品牌色一致
  */
 export default function AIQinShengLandingPage() {
   const router = useRouter()
 
   return (
     <div
-      className="phone-shell relative flex flex-col overflow-hidden !bg-[#1A1228]"
-      style={{ backgroundColor: '#1A1228' }}>
-      {/* 顶部紫色光晕（壳尺寸见 globals .phone-shell） */}
-      <div
-        className="pointer-events-none absolute left-0 right-0 top-0 z-0"
-        style={{
-          height: '40%',
-          maxHeight: 380,
-          background:
-            'radial-gradient(ellipse 95% 88% at 50% 0%, rgba(61, 34, 96, 0.8) 0%, rgba(61, 34, 96, 0) 72%)',
-        }}
-      />
-
+      className="phone-shell relative flex flex-col overflow-hidden"
+      style={{
+        backgroundColor: '#0c0814',
+        backgroundImage: [
+          // 顶：淡紫粉极光（与 benefits / 品牌渐变呼应）
+          'radial-gradient(ellipse 110% 60% at 50% -12%, rgba(168, 85, 247, 0.38) 0%, transparent 56%)',
+          // 右上：冷靛蓝，打破单调
+          'radial-gradient(ellipse 70% 50% at 100% 18%, rgba(99, 102, 241, 0.18) 0%, transparent 55%)',
+          // 底部：亲声讲声波暖色弱光，引导视线到麦克风区
+          'radial-gradient(ellipse 95% 42% at 50% 108%, rgba(232, 120, 80, 0.16) 0%, transparent 52%)',
+          // 主身：斜向深紫 → 墨蓝 → 近黑，避免一片纯黑
+          'linear-gradient(168deg, #2a1f3e 0%, #1f1730 22%, #161022 48%, #0f0a18 74%, #08060e 100%)',
+        ].join(', '),
+      }}>
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         <div className="flex h-10 flex-shrink-0 items-center justify-between px-7 pt-1.5">
           <span className="text-[15px] font-bold text-white/75">21:09</span>
@@ -212,7 +213,7 @@ export default function AIQinShengLandingPage() {
           <span className="absolute right-1 h-9 w-9 shrink-0" aria-hidden />
         </div>
 
-        {/* 393×852 画布内：flex 分区，避免纵向堆叠留白 */}
+        {/* 375×812 画布内：flex 分区，避免纵向堆叠留白 */}
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="relative h-[68px] shrink-0 overflow-hidden">
             <NightSkyDecor />

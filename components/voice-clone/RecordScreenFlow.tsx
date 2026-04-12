@@ -10,19 +10,19 @@ import { QinshengMicVisual } from '@/components/ai-stories/QinshengMicVisual'
 
 /** 与 qinsheng RECORD_LINES 一致 + 首段哄睡提示 */
 export const VOICE_RECORD_INTRO_SYS =
-  '宝宝快要睡觉了吗？\n\n先录一段你平时哄他睡觉的声音——嘘嘘声、哼唱都可以。宝宝<em>今晚就能听到你</em>。'
+  '柚柚快要睡觉了吗？\n\n先录一段你平时哄柚柚睡觉的声音——嘘嘘声、哼唱都可以。柚柚<em>今晚就能听到你</em>。'
 
 export const VOICE_RECORD_AFTER_HUSH_SYS =
-  '很好！声音录下来了，宝宝今晚就可以听到 🌙\n\n现在来读几句话，让AI<em>记住你声音的样子</em>。'
+  '很好！声音录下来了，柚柚今晚就可以听到 🌙\n\n现在来读几句话，让AI<em>记住你声音的样子</em>。'
 
 export const VOICE_RECORD_HUSH_HINT = '（录一段嘘嘘声或哼唱）'
 
 export const VOICE_RECORD_SCRIPT: string[] = [
-  '嘘——宝宝乖，妈妈在呢，\n闭上眼睛睡觉觉……',
-  '月亮出来了，星星也出来了，\n宝宝闭上眼睛，做个好梦吧。',
+  '嘘——柚柚乖，妈妈在呢，\n闭上眼睛睡觉觉……',
+  '月亮出来了，星星也出来了，\n柚柚闭上眼睛，做个好梦吧。',
   '从前有一只小兔子，住在森林里的一棵大树下，\n每天晚上它都会数着星星入睡。',
-  '宝宝最勇敢了，今天辛苦啦，\n快快闭上眼睛，明天又是新的一天。',
-  '小鸟回巢了，小鱼回家了，\n小宝贝也要睡觉觉，做个甜甜的梦。',
+  '柚柚最勇敢了，今天辛苦啦，\n快快闭上眼睛，明天又是新的一天。',
+  '小鸟回巢了，小鱼回家了，\n柚柚也要睡觉觉，做个甜甜的梦。',
 ]
 
 export const VOICE_RECORD_TOTAL_SEGMENTS = 1 + VOICE_RECORD_SCRIPT.length
@@ -36,8 +36,9 @@ const READ_CARD_THEMES = [
 
 type ChatItem = { type: 'sys'; text: string } | { type: 'user'; segmentIndex: number }
 
-const REPLY_THEN_CARD_MS = 480
-const CARD_AFTER_REPLY_MS = 720
+/** 录完一段后：出现系统回复与切换下一句的间隔（略短以加快多句连录节奏） */
+const REPLY_THEN_CARD_MS = 260
+const CARD_AFTER_REPLY_MS = 380
 
 function pickRecorderMime(): string | undefined {
   const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
@@ -66,9 +67,12 @@ const WAVE_BAR_HEIGHTS = [4, 12, 16, 8, 14, 6, 10]
 export default function RecordScreenFlow({
   roleLabel,
   onComplete,
+  className = '',
 }: {
   roleLabel: string
   onComplete: (previewObjectUrl: string | null) => void
+  /** 与父级 flex 配合占满剩余高度，底部按住区固定、上方滚动 */
+  className?: string
 }) {
   const totalLines = VOICE_RECORD_TOTAL_SEGMENTS
   const [currentLine, setCurrentLine] = useState(0)
@@ -248,7 +252,7 @@ export default function RecordScreenFlow({
               if (!mountedRef.current) return
               clearStagedTimers()
               if (nextLine >= totalLines) {
-                setTimeout(() => void mergeAndComplete(), 800)
+                setTimeout(() => void mergeAndComplete(), 420)
               } else {
                 setCurrentLine(nextLine)
               }
@@ -371,10 +375,10 @@ export default function RecordScreenFlow({
     currentLine > 0 ? READ_CARD_THEMES[(currentLine - 1) % READ_CARD_THEMES.length] : null
 
   return (
-    <div className="flex min-h-full flex-col">
-      <p className="mb-3 text-center text-[12px] text-[#B0A0C8]">{roleLabel} · 跟着提示轻声录制</p>
+    <div className={`flex min-h-0 flex-1 flex-col ${className}`.trim()}>
+      <p className="mb-3 shrink-0 text-center text-[12px] text-[#B0A0C8]">{roleLabel} · 跟着提示轻声录制</p>
 
-      <div className="mb-3 flex flex-shrink-0 items-center gap-2">
+      <div className="mb-3 flex shrink-0 items-center gap-2">
         {progressSteps.map((s, i) => (
           <div
             key={i}
@@ -391,8 +395,7 @@ export default function RecordScreenFlow({
 
       <div
         ref={chatRef}
-        className="no-scrollbar mb-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
-        style={{ maxHeight: 'min(320px, 42vh)' }}>
+        className="no-scrollbar mb-3 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain">
         {chat.map((item, i) => {
           if (item.type === 'sys') {
             return (
@@ -436,75 +439,80 @@ export default function RecordScreenFlow({
         })}
       </div>
 
-      <div className="mb-4 flex-shrink-0 overflow-hidden rounded-[16px] border border-[#E4D8F4] text-center shadow-[0_2px_12px_rgba(123,63,212,0.06)]">
-        {currentLine === 0 ? (
-          <div className="bg-[#EDE9FE] px-3.5 py-3.5">
-            <p className="text-[14px] font-normal leading-[1.8] text-[#5B4A7A]">
-              {displayLines[0].split('\n').map((l, j, arr) => (
-                <span key={j}>
-                  {l}
-                  {j < arr.length - 1 && <br />}
-                </span>
-              ))}
-            </p>
+      {/* 底部固定：当前朗读卡 + 电平 + 麦克风，避免整页滚动时找不到按住位置 */}
+      <div className="shrink-0 border-t border-[#EDE4F5] bg-[#FBF7FF] pt-3 shadow-[0_-8px_24px_rgba(123,63,212,0.06)]">
+        <div className="mb-3 max-h-[40vh] overflow-y-auto no-scrollbar">
+          <div className="overflow-hidden rounded-[16px] border border-[#E4D8F4] text-center shadow-[0_2px_12px_rgba(123,63,212,0.06)]">
+            {currentLine === 0 ? (
+              <div className="bg-[#EDE9FE] px-3.5 py-3.5">
+                <p className="text-[14px] font-normal leading-[1.8] text-[#5B4A7A]">
+                  {displayLines[0].split('\n').map((l, j, arr) => (
+                    <span key={j}>
+                      {l}
+                      {j < arr.length - 1 && <br />}
+                    </span>
+                  ))}
+                </p>
+              </div>
+            ) : (
+              readCardTheme && (
+                <>
+                  <div
+                    className="px-3 py-2.5 text-[14px] font-semibold leading-snug"
+                    style={{ background: readCardTheme.labelBg, color: readCardTheme.labelText }}>
+                    {displayLines[0]}
+                  </div>
+                  <div
+                    className="px-3.5 py-3 text-left text-[14px] font-semibold leading-[1.8]"
+                    style={{ background: readCardTheme.scriptBg, color: readCardTheme.scriptText }}>
+                    {displayLines[1].split('\n').map((l, j, arr) => (
+                      <span key={j}>
+                        {l}
+                        {j < arr.length - 1 && <br />}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )
+            )}
           </div>
-        ) : (
-          readCardTheme && (
-            <>
-              <div
-                className="px-3 py-2.5 text-[14px] font-semibold leading-snug"
-                style={{ background: readCardTheme.labelBg, color: readCardTheme.labelText }}>
-                {displayLines[0]}
-              </div>
-              <div
-                className="px-3.5 py-3 text-[14px] font-semibold leading-[1.8]"
-                style={{ background: readCardTheme.scriptBg, color: readCardTheme.scriptText }}>
-                {displayLines[1].split('\n').map((l, j, arr) => (
-                  <span key={j}>
-                    {l}
-                    {j < arr.length - 1 && <br />}
-                  </span>
-                ))}
-              </div>
-            </>
-          )
-        )}
-      </div>
-
-      {isRecording && (
-        <div className="mb-3 flex h-9 items-center justify-center gap-1">
-          {waveHeights.map((h, j) => (
-            <div
-              key={j}
-              className="w-[3px] rounded-sm transition-[height]"
-              style={{
-                height: Math.min(audioLevels[j] ?? h, 36),
-                background: j < 3 || j > 9 ? '#F48FB1' : '#E91E63',
-              }}
-            />
-          ))}
         </div>
-      )}
 
-      <div className="flex flex-shrink-0 flex-col items-center pb-6 pt-1">
-        <button
-          type="button"
-          className={`touch-none select-none border-0 bg-transparent p-0 transition-transform active:scale-[0.97] ${isRecording ? 'scale-[1.02]' : ''}`}
-          onPointerDown={e => {
-            e.preventDefault()
-            if (recordingLine !== null) return
-            handleMicPressStart(currentLine)
-          }}
-          onKeyDown={e => {
-            if (e.key !== ' ' && e.key !== 'Enter') return
-            e.preventDefault()
-            if (e.repeat || recordingLine !== null) return
-            handleMicPressStart(currentLine)
-          }}
-          aria-label="按住录音">
-          <QinshengMicVisual pressing={isRecording} />
-        </button>
-        <p className="mt-2 text-[12px] text-[#B0A0C8]">按住录音</p>
+        {isRecording && (
+          <div className="mb-2 flex h-9 items-center justify-center gap-1">
+            {waveHeights.map((h, j) => (
+              <div
+                key={j}
+                className="w-[3px] rounded-sm transition-[height]"
+                style={{
+                  height: Math.min(audioLevels[j] ?? h, 36),
+                  background: j < 3 || j > 9 ? '#F48FB1' : '#E91E63',
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-col items-center pb-5 pt-1">
+          <button
+            type="button"
+            className={`touch-none select-none border-0 bg-transparent p-0 transition-transform active:scale-[0.97] ${isRecording ? 'scale-[1.02]' : ''}`}
+            onPointerDown={e => {
+              e.preventDefault()
+              if (recordingLine !== null) return
+              handleMicPressStart(currentLine)
+            }}
+            onKeyDown={e => {
+              if (e.key !== ' ' && e.key !== 'Enter') return
+              e.preventDefault()
+              if (e.repeat || recordingLine !== null) return
+              handleMicPressStart(currentLine)
+            }}
+            aria-label="按住录音">
+            <QinshengMicVisual pressing={isRecording} />
+          </button>
+          <p className="mt-2 text-[12px] text-[#B0A0C8]">按住录音</p>
+        </div>
       </div>
     </div>
   )

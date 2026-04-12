@@ -54,7 +54,7 @@ const BANNERS = [
     id: 'voice',
     bg: 'linear-gradient(120deg,#5520A0 0%,#9E1568 55%,#FF5D38 100%)',
     tag: '🎙️ 会员专属权益',
-    title: '用爸妈声音\n给宝宝讲故事',
+    title: '用爸妈声音\n给柚柚讲故事',
     sub: '声音克隆 · 永久保存',
     btnText: '了解详情',
     btnHref: '/voice-clone',

@@ -3,6 +3,9 @@ import { useState, useRef, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { markVoiceSlotDone, roleToVoiceSlot, sessionAudioKey, VOICE_SLOT_TOTAL } from '@/lib/voiceSlots'
 import RecordScreenFlow, { VOICE_RECORD_TOTAL_SEGMENTS } from '@/components/voice-clone/RecordScreenFlow'
+import CloneDoneHeroCanvas from '@/components/voice-clone/CloneDoneHeroCanvas'
+import { CloneDonePerkIcon, cloneDonePerkIconBg } from '@/components/voice-clone/CloneDonePerkIcon'
+import { VOICE_CLONE_PERKS } from '@/lib/voiceClonePerks'
 
 type Step = 'role' | 'record' | 'processing' | 'done'
 type Role =
@@ -38,6 +41,12 @@ const FAMILY_GRID_ROLES: { id: Exclude<Role, 'mom' | 'dad' | 'other' | null>; la
 
 const ALL_ROLES = [...MAIN_ROLES, OTHER_ROLE, ...FAMILY_GRID_ROLES]
 
+/** 完成页「试听效果」固定口播（不播放用户录音文件，避免环境差异） */
+const DEMO_PREVIEW_SPEAK_TEXT =
+  '柚柚乖，这是亲声讲的试听效果。开通会员后，可以用你的声音给柚柚讲每一首故事哦。'
+
+const DEMO_WAVE_BAR_HEIGHTS = [5, 11, 15, 8, 12]
+
 function VoiceCloneContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -46,13 +55,12 @@ function VoiceCloneContent() {
   const [customRoleName, setCustomRoleName] = useState('')
   /** 克隆完成页「试听」用，在完成录制时从各句录音复制而来，避免子组件卸载 revoke 后失效 */
   const [clonePreviewUrl, setClonePreviewUrl] = useState<string | null>(null)
-  const previewAudioRef = useRef<HTMLAudioElement | null>(null)
+  const [demoPreviewPlaying, setDemoPreviewPlaying] = useState(false)
   const skipAppliedRef = useRef(false)
 
   useEffect(() => {
     return () => {
-      previewAudioRef.current?.pause()
-      previewAudioRef.current = null
+      if (typeof window !== 'undefined') window.speechSynthesis.cancel()
     }
   }, [])
 
@@ -113,44 +121,41 @@ function VoiceCloneContent() {
       router.push('/ai-stories')
       return
     }
+    if (step === 'processing' || step === 'done') {
+      router.push('/ai-stories/home')
+      return
+    }
     router.back()
   }
 
-  const resetFlow = () => {
-    if (clonePreviewUrl) URL.revokeObjectURL(clonePreviewUrl)
-    setClonePreviewUrl(null)
-    previewAudioRef.current?.pause()
-    previewAudioRef.current = null
-    setStep('role')
-    setSelectedRole(null)
-    setCustomRoleName('')
+  const toggleDemoPreview = () => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      alert('当前环境不支持语音试听')
+      return
+    }
+    if (demoPreviewPlaying) {
+      window.speechSynthesis.cancel()
+      setDemoPreviewPlaying(false)
+      return
+    }
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(DEMO_PREVIEW_SPEAK_TEXT)
+    u.lang = 'zh-CN'
+    u.rate = 0.92
+    u.onend = () => setDemoPreviewPlaying(false)
+    u.onerror = () => setDemoPreviewPlaying(false)
+    setDemoPreviewPlaying(true)
+    window.speechSynthesis.speak(u)
   }
 
-  const toggleClonePreview = () => {
-    if (!clonePreviewUrl) {
-      alert('暂无可播放的录音')
-      return
-    }
-    const cur = previewAudioRef.current
-    if (cur && !cur.paused) {
-      cur.pause()
-      cur.currentTime = 0
-      previewAudioRef.current = null
-      return
-    }
-    if (cur) {
-      cur.pause()
-      previewAudioRef.current = null
-    }
-    const a = new Audio(clonePreviewUrl)
-    previewAudioRef.current = a
-    a.onended = () => {
-      previewAudioRef.current = null
-    }
-    a.play().catch(() => {
-      previewAudioRef.current = null
-      alert('无法播放，请检查浏览器是否允许音频播放')
+  const handleRerecordFromDone = () => {
+    if (typeof window !== 'undefined') window.speechSynthesis.cancel()
+    setDemoPreviewPlaying(false)
+    setClonePreviewUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
     })
+    setStep('record')
   }
 
   const roleMeta = ALL_ROLES.find(r => r.id === selectedRole)
@@ -162,7 +167,7 @@ function VoiceCloneContent() {
     !!selectedRole && (selectedRole !== 'other' || !!customRoleName.trim())
 
   return (
-    <div className="phone-shell bg-[#FBF7FF] flex flex-col">
+    <div className="phone-shell relative bg-[#FBF7FF] flex flex-col">
       <div className="h-12 px-7 flex justify-between items-center pt-3 flex-shrink-0">
         <span className="text-[15px] font-bold text-[#1A0A2E]">10:37</span>
         <span className="text-sm">📶🔋</span>
@@ -179,17 +184,140 @@ function VoiceCloneContent() {
         <div className="flex-1 text-center text-[16px] font-bold text-[#1A0A2E]">
           {step === 'role' && '选择角色'}
           {step === 'record' && '录制你的声音'}
-          {step === 'processing' && '正在生成音色'}
-          {step === 'done' && '克隆完成'}
+          {step === 'processing' && '正在学习你的音色'}
+          {step === 'done' && 'AI亲声讲'}
         </div>
         <div className="w-9" />
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 px-5 pb-8">
+      <div className="flex min-h-0 flex-1 flex-col">
+        {step === 'record' ? (
+          <RecordScreenFlow
+            className="min-h-0 flex-1 px-5"
+            roleLabel={roleLabel || '妈妈'}
+            onComplete={previewUrl => {
+              setClonePreviewUrl(prev => {
+                if (prev) URL.revokeObjectURL(prev)
+                return previewUrl
+              })
+              setStep('processing')
+              setTimeout(() => setStep('done'), 3000)
+            }}
+          />
+        ) : step === 'done' ? (
+          <>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 no-scrollbar">
+              <div className="flex flex-col items-stretch pt-2">
+                <CloneDoneHeroCanvas />
 
+                <h2 className="mb-2 text-center text-[20px] font-bold text-[#1A0A2E]">声音克隆准备好了</h2>
+                <div className="mb-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+                  <button
+                    type="button"
+                    onClick={toggleDemoPreview}
+                    aria-pressed={demoPreviewPlaying}
+                    className={`inline-flex items-center gap-3 rounded-full border px-4 py-2.5 shadow-sm transition-colors active:opacity-85 ${
+                      demoPreviewPlaying
+                        ? 'border-[#7B3FD4] bg-[#F3EEFF]'
+                        : 'border-[#E4D8F4] bg-white'
+                    }`}>
+                    <div className="flex h-5 items-end gap-0.5" aria-hidden>
+                      {DEMO_WAVE_BAR_HEIGHTS.map((h, i) => (
+                        <span
+                          key={i}
+                          className={`w-[3px] rounded-full bg-[#7B3FD4] ${demoPreviewPlaying ? 'voice-record-wave-bar' : ''}`}
+                          style={{
+                            height: h,
+                            animationDelay: `${i * 0.09}s`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <span
+                      className={`text-[13px] font-semibold ${demoPreviewPlaying ? 'text-[#5B21B6]' : 'text-[#7B3FD4]'}`}>
+                      {demoPreviewPlaying ? '播放中…' : '试听效果'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRerecordFromDone}
+                    className="text-[12px] font-normal text-[#C4B8D8] underline decoration-[#E8E0F4] underline-offset-2 active:opacity-70">
+                    重录
+                  </button>
+                </div>
+
+                <div className="mb-4 flex flex-col gap-3">
+                  {VOICE_CLONE_PERKS.map(p => (
+                    <div
+                      key={p.id}
+                      className="flex items-center gap-3.5 rounded-[16px] border border-[#F0E8FF] bg-white p-4 shadow-[0_2px_12px_rgba(123,63,212,0.06)]">
+                      <div
+                        className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[14px] border border-[#F0E8FF] ${cloneDonePerkIconBg(p.colorClass)}`}>
+                        <CloneDonePerkIcon colorClass={p.colorClass} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="mb-1.5 text-[15px] font-bold leading-snug text-[#1A0A2E]">{p.title}</p>
+                        <p className="text-[13px] leading-relaxed text-[#6B5B8C]">{p.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="flex-shrink-0 border-t border-[#EEE8F5] bg-white px-3 pb-2 pt-2"
+              style={{
+                borderTopLeftRadius: 14,
+                borderTopRightRadius: 14,
+                boxShadow: '0 -2px 10px rgba(0,0,0,0.05)',
+              }}>
+              <p className="mb-1.5 flex items-center gap-1 text-[13px] font-bold leading-tight text-[#1A0A2E]">
+                <span className="text-[14px]" aria-hidden>
+                  💗
+                </span>
+                不到一顿饭钱，你将获得：
+              </p>
+              <ul className="mb-0 space-y-1">
+                {[
+                  '1种高还原度克隆音色',
+                  '0～6岁故事全库支持换声畅听',
+                  '每月30次柚柚故事定制',
+                ].map(line => (
+                  <li key={line} className="flex gap-2 text-[11px] leading-snug text-[#6B5B8C]">
+                    <span
+                      className="mt-1 h-1 w-1 shrink-0 rounded-full bg-[#7B3FD4]"
+                      aria-hidden
+                    />
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="relative mt-2 px-0.5">
+                <span
+                  className="absolute -top-1.5 right-1.5 z-10 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow-sm"
+                  style={{ background: 'linear-gradient(90deg, #FF5F5F, #FF8E53)' }}>
+                  限时特惠
+                </span>
+                <button
+                  type="button"
+                  onClick={() => router.push('/ai-stories/home')}
+                  className="flex h-[46px] w-full items-center justify-center rounded-[23px] text-[14px] font-bold text-white active:opacity-90"
+                  style={{
+                    background: 'linear-gradient(90deg, #A855F7 0%, #EC4899 50%, #F97316 100%)',
+                    boxShadow: '0 4px 16px rgba(168,85,247,0.22)',
+                  }}>
+                  开通会员立即生成
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 no-scrollbar">
         {step === 'role' && (
           <div>
-            <div className="text-[13px] text-[#B0A0C8] text-center mb-1">谁来给宝宝讲故事？</div>
+            <div className="text-[13px] text-[#B0A0C8] text-center mb-1">谁来给柚柚讲故事？</div>
             <div className="text-[11px] text-[#D0C8E0] text-center mb-5">选择克隆音色对应的家庭角色</div>
 
             <div className="text-[13px] font-bold text-[#1A0A2E] mb-2.5">主要角色</div>
@@ -298,7 +426,7 @@ function VoiceCloneContent() {
               style={{ background: '#FFF5F8' }}>
               <span className="text-[16px] flex-shrink-0">🎙️</span>
               <span className="text-[11px] text-[#880E4F] leading-snug">
-                会员可克隆<span className="font-black">{VOICE_SLOT_TOTAL}个</span>不同音色，永久保存
+                会员可克隆<span className="font-black">{VOICE_SLOT_TOTAL}</span>种音色，永久保存
               </span>
             </div>
 
@@ -315,76 +443,18 @@ function VoiceCloneContent() {
           </div>
         )}
 
-        {step === 'record' && (
-          <RecordScreenFlow
-            roleLabel={roleLabel || '妈妈'}
-            onComplete={previewUrl => {
-              setClonePreviewUrl(prev => {
-                if (prev) URL.revokeObjectURL(prev)
-                return previewUrl
-              })
-              setStep('processing')
-              setTimeout(() => setStep('done'), 3000)
-            }}
-          />
-        )}
-
         {step === 'processing' && (
           <div className="flex flex-col items-center justify-center py-12">
-            <div className="text-[56px] mb-4 animate-pulse">{roleEmoji}</div>
-            <div className="text-[18px] font-bold text-[#1A0A2E] mb-2">正在生成音色...</div>
-            <div className="text-[13px] text-[#B0A0C8] mb-6">AI正在学习{roleLabel}的声音特征</div>
+            <div className="mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#F5F0FF] text-[40px] animate-pulse">
+              🎙️
+            </div>
+            <div className="text-[18px] font-bold text-[#1A0A2E] mb-6">正在学习你的音色</div>
             <div className="w-48 h-2 bg-[#F0E8FF] rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-[#7B3FD4] to-[#E91E63] rounded-full animate-pulse" style={{ width: '70%' }}/>
             </div>
           </div>
         )}
 
-        {step === 'done' && (
-          <div className="flex flex-col items-center py-8">
-            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
-              style={{ background: 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
-              <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </div>
-            <div className="text-[20px] font-black text-[#1A0A2E] mb-1">{roleLabel}的声音克隆成功！</div>
-            <div className="text-[13px] text-[#B0A0C8] mb-6">现在可以用{roleLabel}的声音讲故事了</div>
-
-            <div className="w-full bg-white rounded-[16px] border border-[#F0E8FF] p-4 mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-[24px]"
-                  style={{ background: '#FFF0F5' }}>{roleEmoji}</div>
-                <div className="flex-1">
-                  <div className="text-[14px] font-bold text-[#1A0A2E]">{roleLabel}的声音</div>
-                  <div className="text-[11px] text-[#B0A0C8]">克隆完成 · 今天</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={toggleClonePreview}
-                  className="px-3 py-1.5 rounded-full text-[12px] font-bold border border-[#E91E63] text-[#E91E63] active:opacity-80">
-                  试听
-                </button>
-              </div>
-            </div>
-
-            <button type="button" onClick={() => router.push('/ai-stories/home')}
-              className="w-full h-12 rounded-full text-white font-bold text-[15px] mb-3"
-              style={{ background: 'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
-              进入 AI 亲声讲
-            </button>
-            <button type="button" onClick={() => router.push('/stories')}
-              className="w-full h-11 rounded-full border-2 border-[#E0D8F0] bg-white text-[14px] font-bold text-[#6B5B8C] mb-3 active:bg-[#FAF7FF]">
-              去听故事
-            </button>
-            <button type="button" onClick={() => router.push('/my-voices')}
-              className="w-full h-11 rounded-full text-[13px] font-bold mb-2 border-2 border-[#E0D8F0] text-[#6B5B8C] active:bg-[#FAF7FF]">
-              管理我的声音
-            </button>
-            <button type="button" onClick={resetFlow}
-              className="w-full h-10 text-[13px] text-[#B0A0C8]">
-              再录一个角色
-            </button>
           </div>
         )}
       </div>

@@ -92,7 +92,7 @@ export default function VoiceSwitcher({
           className="mt-2.5 flex items-center gap-2 px-2.5 py-2 rounded-lg border-l-2 border-amber-400/90"
           style={{ background: 'rgba(255,255,255,0.06)' }}>
           <p className="flex-1 min-w-0 text-[11px] text-white/60 leading-snug">
-            切换妈妈原声讲故事，让宝宝更亲切
+            切换妈妈原声讲故事，让柚柚更亲切
           </p>
           <button
             type="button"

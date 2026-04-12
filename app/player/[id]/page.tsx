@@ -348,13 +348,13 @@ function PlayerContent({ id }: { id: string }) {
             <div className="text-center mb-5">
               <div className="text-4xl mb-2">🎙️</div>
               <div className="text-[17px] font-black text-[#1A0A2E] mb-1">开通会员解锁原声讲述</div>
-              <div className="text-[12px] text-[#6B5B8C] leading-relaxed px-1">用爸妈的声音，给宝宝讲库里的每一首故事</div>
+              <div className="text-[12px] text-[#6B5B8C] leading-relaxed px-1">用爸妈的声音，给柚柚讲库里的每一首故事</div>
             </div>
             <div className="bg-[#F8F4FF] rounded-2xl p-4 mb-5 border border-[#F0E8FF]">
               {[
                 ['可克隆音色', `会员最多${VOICE_SLOT_TOTAL}种`],
                 ['适用故事', '0～6岁故事全库畅听'],
-                ['定制故事', '每月30次宝宝故事定制'],
+                ['定制故事', '每月30次柚柚故事定制'],
                 ['保存时长', '永久有效'],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between py-2 border-b border-[#F0E8FF] last:border-0">

@@ -219,7 +219,7 @@ const COLLECTIONS: Record<string, {
   e2: {
     id: 'e2', title: '我有点害怕', emoji: '🌟',
     bg: 'linear-gradient(135deg,#FFF8E1,#FF8F00)',
-    desc: '接纳害怕的情绪，给宝宝安全感与面对未知的勇气。',
+    desc: '接纳害怕的情绪，给柚柚安全感与面对未知的勇气。',
     eps: 10, tag: '全龄 · 爱与情感',
     episodes: Array.from({ length: 10 }, (_, i) => ({
       id: `ep-e2-${i + 1}`, title: `我有点害怕 · 第${i + 1}集`, duration_sec: 138 + i * 20,
@@ -421,11 +421,11 @@ function CollectionPageContent({ id }: { id: string }) {
 
       {showPaywall && (
         <div
-          className="fixed inset-0 z-[100] flex items-end justify-center"
+          className="absolute inset-0 z-[100] flex items-end justify-center min-w-0"
           style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
           onClick={() => setShowPaywall(false)}>
           <div
-            className="w-full max-w-md bg-white rounded-t-[28px] px-5 pt-6 pb-10"
+            className="w-full max-w-full min-w-0 box-border bg-white rounded-t-[28px] px-5 pt-6 pb-10"
             onClick={e => e.stopPropagation()}>
             <div className="w-9 h-1 bg-[#E0D8F0] rounded-full mx-auto mb-5" />
             <div className="text-center mb-5">

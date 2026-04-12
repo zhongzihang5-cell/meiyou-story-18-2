@@ -12,8 +12,8 @@
   --story-bg: #FBF7FF;
   --story-border: #F0E8FF;
   /* 与 iPhone 逻辑分辨率一致；壳体与底部条等同宽 */
-  --phone-shell-w: 393px;
-  --phone-shell-h: 852px;
+  --phone-shell-w: 375px;
+  --phone-shell-h: 812px;
 }
 
 * { -webkit-tap-highlight-color: transparent; }
@@ -26,7 +26,7 @@ body {
   padding: 24px 16px;
 }
 
-/* Mobile phone shell — 393×852 pt（网页用 px；矮视口时高度随可视区域收缩） */
+/* Mobile phone shell — 375×812 pt（网页用 px；矮视口时高度随可视区域收缩） */
 .phone-shell {
   box-sizing: border-box;
   width: var(--phone-shell-w);

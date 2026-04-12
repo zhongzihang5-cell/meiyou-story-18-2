@@ -60,7 +60,7 @@ function buildPrompt(params: StoryGenParams): string {
 - 音效用：【音效:具体描述】（如：【音效:小鸟叫声】）
 - 停顿用：【停顿1秒】或【停顿2秒】
 - 开场固定：【音效:轻柔叮咚声】【旁白】嗨，小朋友们，今天的故事开始啦～
-- 结尾固定：【旁白】故事讲完啦，${isCustom && params.babyName ? params.babyName : '宝宝'}要乖乖睡觉～【音效:轻柔叮咚声】
+- 结尾固定：【旁白】故事讲完啦，${isCustom && params.babyName ? params.babyName : '柚柚'}要乖乖睡觉～【音效:轻柔叮咚声】
 
 【内容禁忌】
 - 禁止：恐怖/暴力/危险行为描写

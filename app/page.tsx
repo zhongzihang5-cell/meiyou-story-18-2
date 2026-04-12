@@ -107,7 +107,7 @@ export default function MeiyouHomePage() {
   return (
     <div className="phone-shell bg-[#F2F2F7] flex flex-col pb-[52px] overflow-hidden">
       <div className="relative flex-shrink-0 h-[200px]">
-        <Image src={HERO_IMG} alt="" fill className="object-cover object-[center_30%]" sizes="393px" priority />
+        <Image src={HERO_IMG} alt="" fill className="object-cover object-[center_30%]" sizes="375px" priority />
         <div
           className="absolute inset-0"
           style={{
@@ -246,7 +246,7 @@ export default function MeiyouHomePage() {
                 今天 · 第3天
               </div>
               <div className="relative w-full mt-2 rounded-[10px] overflow-hidden bg-[#EEE] aspect-[4/3]">
-                <Image src={FEED_IMG} alt="" fill className="object-cover" sizes="393px" />
+                <Image src={FEED_IMG} alt="" fill className="object-cover" sizes="375px" />
               </div>
               <div className="text-[13px] font-bold text-[#AAA] mt-4">昨天 · 第2天</div>
             </div>

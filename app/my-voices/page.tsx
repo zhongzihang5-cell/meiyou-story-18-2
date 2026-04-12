@@ -228,7 +228,7 @@ export default function MyVoicesPage() {
         <div className="flex-1 text-center">
           <div className="text-[16px] font-bold text-[#1A0A2E]">声音管理</div>
           <div className="text-[11px] text-[#B0A0C8] mt-0.5">
-            已克隆 {doneCount} / {VOICE_SLOT_TOTAL} 个音色
+            已克隆 {doneCount} / {VOICE_SLOT_TOTAL} 种音色
           </div>
         </div>
         <div className="w-9" />
@@ -257,10 +257,10 @@ export default function MyVoicesPage() {
             </span>
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-bold text-[#7B3FD4] leading-snug">
-                已使用 {doneCount} / {VOICE_SLOT_TOTAL} 个音色额度
+                已使用 {doneCount} / {VOICE_SLOT_TOTAL} 种音色额度
               </div>
               <div className="text-[11px] text-[#9B86B8] mt-1 leading-snug">
-                会员可永久保存 {VOICE_SLOT_TOTAL} 个克隆音色
+                会员可永久保存 {VOICE_SLOT_TOTAL} 种克隆音色
               </div>
             </div>
           </div>

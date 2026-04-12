@@ -10,7 +10,7 @@ const noto = Noto_Sans_SC({
 
 export const metadata: Metadata = {
   title: 'AI亲声讲 · 美柚',
-  description: '用爸妈声音给宝宝讲故事',
+  description: '用爸妈声音给柚柚讲故事',
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
 }
 

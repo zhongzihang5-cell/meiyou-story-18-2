@@ -1,4 +1,4 @@
-/** 我的声音：妈妈 / 爸爸 / 其他家人 三个槽位；会员可克隆音色额度见 VOICE_SLOT_TOTAL */
+/** 我的声音：妈妈 / 爸爸 / 其他家人 三个入口；会员可克隆音色额度见 VOICE_SLOT_TOTAL（当前为 1 种） */
 
 export type VoiceSlotId = 'mom' | 'dad' | 'elder'
 
@@ -12,7 +12,7 @@ export type VoiceSlotsState = Record<VoiceSlotId, VoiceSlotMeta>
 
 const STORAGE_KEY = 'meiyou_voice_slots_v1'
 
-export const VOICE_SLOT_TOTAL = 2
+export const VOICE_SLOT_TOTAL = 1
 
 /** 首次进入演示：妈妈已有一条克隆 */
 const DEFAULT_SLOTS: VoiceSlotsState = {
