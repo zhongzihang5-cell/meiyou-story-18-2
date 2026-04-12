@@ -7,8 +7,7 @@ import MiniPlayer from '@/components/MiniPlayer'
 import type { MiniPlayerTrack } from '@/components/MiniPlayer'
 import {
   buildMemberHomePlayerHref,
-  MEMBER_HOME_CUSTOM_DEFAULT_TAG,
-  MEMBER_HOME_KEYWORDS,
+  MEMBER_HOME_INTEREST_TAGS,
   MEMBER_HOME_RECOMMEND_STORIES,
   MEMBER_HOME_SLEEP_COUNT,
   MEMBER_HOME_VOICE_ALBUM_CARDS,
@@ -279,14 +278,29 @@ function VoiceAlbumCardCta({ onClick }: { onClick: () => void }) {
   )
 }
 
+function buildCustomStoryHref(selectedInterestValues: string[]) {
+  const q = new URLSearchParams()
+  q.set('from', 'ai-stories-home')
+  if (selectedInterestValues.length > 0) {
+    q.set('interests', selectedInterestValues.join(','))
+  }
+  return `/custom-story?${q.toString()}`
+}
+
 /**
  * AI亲声讲首页（严格对齐 cursor_prompt_ai_story.md）
  */
 export default function AiQinshengHomeView() {
   const router = useRouter()
   const fromQ = '?from=ai-stories-home'
-  const [customTag, setCustomTag] = useState<string>(MEMBER_HOME_CUSTOM_DEFAULT_TAG)
+  const [selectedInterests, setSelectedInterests] = useState<string[]>(() => [MEMBER_HOME_INTEREST_TAGS[0].value])
   const [miniSyncKey, setMiniSyncKey] = useState<string>('rec-1')
+
+  const toggleInterest = (value: string) => {
+    setSelectedInterests(prev =>
+      prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value],
+    )
+  }
 
   const homeMiniTracks: MiniPlayerTrack[] = useMemo(() => {
     const rec: MiniPlayerTrack[] = MEMBER_HOME_RECOMMEND_STORIES.map(s => ({
@@ -416,13 +430,13 @@ export default function AiQinshengHomeView() {
               柚柚喜欢…
             </p>
             <div className="mb-2.5 flex flex-wrap gap-1.5" style={{ gap: 6, marginBottom: 10 }}>
-              {MEMBER_HOME_KEYWORDS.map(tag => {
-                const on = customTag === tag
+              {MEMBER_HOME_INTEREST_TAGS.map(tag => {
+                const on = selectedInterests.includes(tag.value)
                 return (
                   <button
-                    key={tag}
+                    key={tag.value}
                     type="button"
-                    onClick={() => setCustomTag(tag)}
+                    onClick={() => toggleInterest(tag.value)}
                     className="border-0"
                     style={{
                       borderRadius: 20,
@@ -431,13 +445,13 @@ export default function AiQinshengHomeView() {
                       background: on ? PURPLE : '#F3F0F9',
                       color: on ? '#FFFFFF' : PURPLE,
                     }}>
-                    {tag}
+                    {tag.label}
                   </button>
                 )
               })}
               <button
                 type="button"
-                onClick={() => router.push('/custom-story')}
+                onClick={() => router.push(buildCustomStoryHref(selectedInterests))}
                 className="border-0 bg-transparent"
                 style={{
                   border: '1px dashed #DB2777',
@@ -451,7 +465,7 @@ export default function AiQinshengHomeView() {
             </div>
             <button
               type="button"
-              onClick={() => router.push('/custom-story')}
+              onClick={() => router.push(buildCustomStoryHref(selectedInterests))}
               className="w-full border-0 font-medium text-white active:opacity-90"
               style={{
                 background: PURPLE,
@@ -530,7 +544,7 @@ export default function AiQinshengHomeView() {
                 card.kind === 'story' ? (
                   <VoiceAlbumCardStory key={card.id} card={card} onPlay={playAlbumStory} />
                 ) : (
-                  <VoiceAlbumCardCta key={`cta-${idx}`} onClick={() => router.push('/custom-story')} />
+                  <VoiceAlbumCardCta key={`cta-${idx}`} onClick={() => router.push(buildCustomStoryHref([]))} />
                 )
               )}
             </div>

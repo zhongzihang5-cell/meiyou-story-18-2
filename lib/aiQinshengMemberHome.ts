@@ -65,12 +65,23 @@ export function buildMemberHomePlayerHref(p: {
   return `/player/${p.playerStoryId}?${q.toString()}`
 }
 
-/** 定制故事：默认选中的兴趣标签 */
-export const MEMBER_HOME_CUSTOM_DEFAULT_TAG = '小狮子' as const
-
 export const MEMBER_HOME_BABY_NAME = '柚柚'
 
-export const MEMBER_HOME_KEYWORDS = ['小狮子', '草莓', '垃圾车'] as const
+/**
+ * 首页「定制专属故事」与 /custom-story「故事主角」共用：value 一致才能透传勾选状态
+ */
+export const MEMBER_HOME_INTEREST_TAGS = [
+  { value: 'interest-lion', label: '小狮子', emoji: '🦁' },
+  { value: 'interest-strawberry', label: '草莓', emoji: '🍓' },
+  { value: 'interest-garbage-truck', label: '垃圾车', emoji: '🚛' },
+] as const
+
+export type MemberHomeInterestTag = (typeof MEMBER_HOME_INTEREST_TAGS)[number]
+
+/** 合法的兴趣 tag value 集合（用于校验 URL） */
+export const MEMBER_HOME_INTEREST_VALUES: Set<string> = new Set(
+  MEMBER_HOME_INTEREST_TAGS.map(t => t.value),
+)
 
 export const MEMBER_HOME_SLEEP_COUNT = 23
 

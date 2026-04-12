@@ -1,10 +1,18 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useRef, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import {
+  MEMBER_HOME_BABY_NAME,
+  MEMBER_HOME_INTEREST_TAGS,
+  MEMBER_HOME_INTEREST_VALUES,
+} from '@/lib/aiQinshengMemberHome'
+
+/** 与首页兴趣标签一致，最多可选主角数量（含宝宝/兴趣/其他角色） */
+const MAX_PROTAGONISTS = 3
 
 const ALL_BABIES = [
-  { id: '1', name: '果果', emoji: '👧', age: '2岁3个月' },
+  { id: '1', name: MEMBER_HOME_BABY_NAME, emoji: '👧', age: '14个月' },
   { id: '2', name: '多多', emoji: '👦', age: '4岁1个月' },
   { id: '3', name: '小宝', emoji: '👶', age: '8个月' },
 ]
@@ -20,7 +28,16 @@ const THEME_OPTIONS = [
   { value: 'friend', label: '交朋友', emoji: '🤝' },
 ]
 
-const EXTRA_CHARACTERS = [
+/** 「今日故事」展开区：默认文案 + 快捷填入（宝宝名与「我的宝宝」一致） */
+function buildTodayStoryDefaultText(babyName: string) {
+  return `宝宝今日长牙了。
+今天打了疫苗。
+爸爸妈妈夸${babyName}真勇敢！`
+}
+
+const TODAY_STORY_SNIPPETS = ['宝宝今日长牙了', '今天打了疫苗'] as const
+
+const EXTRA_CHARACTERS_MORE = [
   { value: 'ultraman', label: '奥特曼', emoji: '🦸' },
   { value: 'pig', label: '小飞猪', emoji: '🐷' },
   { value: 'bear', label: '小熊', emoji: '🐻' },
@@ -28,6 +45,12 @@ const EXTRA_CHARACTERS = [
   { value: 'fox', label: '小狐狸', emoji: '🦊' },
   { value: 'elephant', label: '小象', emoji: '🐘' },
   { value: 'dragon', label: '小龙', emoji: '🐲' },
+] as const
+
+/** 前段与 ai-stories/home「柚柚喜欢」标签 value/文案一致，便于透传勾选 */
+const EXTRA_CHARACTERS = [
+  ...MEMBER_HOME_INTEREST_TAGS.map(t => ({ value: t.value, label: t.label, emoji: t.emoji })),
+  ...EXTRA_CHARACTERS_MORE,
 ]
 
 const MESSAGE_SHORTCUTS = [
@@ -39,8 +62,100 @@ const MESSAGE_SHORTCUTS = [
   '做个善良的孩子',
 ]
 
-export default function CustomStoryPage() {
+/** 标题字数上限：手机一行内读完 */
+const STORY_TITLE_MAX = 11
+
+function clampStoryTitle(s: string, max = STORY_TITLE_MAX): string {
+  const t = s.replace(/\s+/g, '').replace(/\n/g, '').trim()
+  if (!t) return '专属小故事'
+  if (t.length <= max) return t
+  return `${t.slice(0, max - 1)}…`
+}
+
+/** 与预设主题对应的短意象词，用于拼进标题 */
+const THEME_TITLE_FLAVOR: Record<string, string> = {
+  sleep: '睡前',
+  animal: '动物',
+  emotion: '情绪',
+  family: '全家',
+  nature: '自然',
+  adventure: '探险',
+  habit: '习惯',
+  friend: '朋友',
+}
+
+/**
+ * 精炼故事标题：与所选宝宝/元素、主题类型挂钩，控制字数
+ */
+function buildCompactStoryTitle(
+  selectedIds: string[],
+  getLabel: (id: string) => string,
+  theme: string | null,
+  todayText: string,
+  customTheme: string,
+): string {
+  const babyEntry = selectedIds.map(id => ALL_BABIES.find(b => b.id === id)).find(Boolean)
+  const labels = selectedIds.map(getLabel).filter(Boolean)
+  const primary = (babyEntry?.name ?? labels[0] ?? '宝宝').slice(0, 4)
+  const nonBabyLabels = selectedIds
+    .filter(id => !ALL_BABIES.some(b => b.id === id))
+    .map(getLabel)
+    .filter(Boolean)
+  const extra = (nonBabyLabels[0] ?? '').slice(0, 3)
+
+  let raw = ''
+  if (theme === 'none') {
+    raw = extra ? `${primary}·${extra}` : `${primary}奇遇`
+  } else if (theme === 'today') {
+    const t = todayText
+    let hook = '今日'
+    if (t.includes('长牙') && t.includes('疫苗')) hook = '长牙疫苗'
+    else if (t.includes('长牙')) hook = '长牙'
+    else if (t.includes('疫苗')) hook = '疫苗'
+    raw = `${primary}·${hook}`
+  } else if (theme === 'custom') {
+    const core = customTheme.trim().replace(/\s+/g, '').slice(0, 4)
+    raw = core ? `${primary}·${core}` : `${primary}故事`
+  } else if (theme && THEME_TITLE_FLAVOR[theme]) {
+    const flav = THEME_TITLE_FLAVOR[theme]
+    raw = extra ? `${primary}·${extra}${flav}` : `${primary}·${flav}`
+  } else {
+    raw = `${primary}故事`
+  }
+
+  return clampStoryTitle(raw)
+}
+
+/** 传给播放器：短标签，用于字幕里的「喜欢xxx」，避免整段日记 */
+function buildPlayerThemeSummary(theme: string | null, todayText: string, customT: string): string {
+  if (theme === 'none') return '自由发挥'
+  if (theme === 'today') {
+    const t = todayText
+    if (t.includes('长牙') && t.includes('疫苗')) return '长牙与疫苗'
+    if (t.includes('长牙')) return '长牙了'
+    if (t.includes('疫苗')) return '打疫苗'
+    return '今日小事'
+  }
+  if (theme === 'custom') {
+    const c = customT.trim().replace(/\s+/g, '')
+    return c ? clampStoryTitle(c, 10) : '自定义'
+  }
+  const label = THEME_OPTIONS.find(x => x.value === theme)?.label ?? '故事'
+  return clampStoryTitle(label.replace('故事', '').trim() || label, 8)
+}
+
+/** 播放器里「角色列表」用短串：最多两人，多则用「等」 */
+function buildPlayerCharsShort(selectedIds: string[], getLabel: (id: string) => string): string {
+  const labels = selectedIds.map(getLabel).filter(Boolean)
+  if (labels.length === 0) return '小朋友'
+  if (labels.length === 1) return labels[0].slice(0, 6)
+  if (labels.length === 2) return `${labels[0].slice(0, 4)}和${labels[1].slice(0, 4)}`
+  return `${labels[0].slice(0, 4)}和${labels[1].slice(0, 4)}等`
+}
+
+function CustomStoryPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [customChars, setCustomChars] = useState<Array<{ value: string; label: string; emoji: string }>>([])
   const [showCustomChar, setShowCustomChar] = useState(false)
@@ -49,6 +164,11 @@ export default function CustomStoryPage() {
   const [theme, setTheme] = useState<string | null>(null)
   const [showCustomTheme, setShowCustomTheme] = useState(false)
   const [customTheme, setCustomTheme] = useState('')
+  const [showTodayStory, setShowTodayStory] = useState(false)
+  const [todayStoryText, setTodayStoryText] = useState(() =>
+    buildTodayStoryDefaultText(MEMBER_HOME_BABY_NAME),
+  )
+  const [messageOtherActive, setMessageOtherActive] = useState(false)
   const [selectedChars, setSelectedChars] = useState<string[]>([])
   const [message, setMessage] = useState('')
   const [generating, setGenerating] = useState(false)
@@ -57,26 +177,49 @@ export default function CustomStoryPage() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    const raw = searchParams.get('interests')
+    if (!raw?.trim()) return
+    const ids = raw.split(',').map(s => s.trim()).filter(Boolean)
+    const picked = ids.filter(id => MEMBER_HOME_INTEREST_VALUES.has(id)).slice(0, MAX_PROTAGONISTS)
+    if (picked.length > 0) setSelectedChars(picked)
+  }, [searchParams])
+
+  useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
   }, [])
 
-  const themeReady = !!theme && (theme !== 'custom' || customTheme.trim().length > 0)
+  const themeReady =
+    theme === 'none' ||
+    (theme === 'today' && todayStoryText.trim().length > 0) ||
+    (theme === 'custom' && customTheme.trim().length > 0) ||
+    (!!theme && THEME_OPTIONS.some(t => t.value === theme))
+
   const canGenerate = themeReady && selectedChars.length > 0
 
   const steps = [
     { n: 1, label: '选主题', done: themeReady, active: !themeReady },
-    { n: 2, label: '选主角', done: selectedChars.length > 0, active: themeReady && selectedChars.length === 0 },
-    { n: 3, label: '加寄语', done: !!message, active: selectedChars.length > 0 && !message },
+    {
+      n: 2,
+      label: '选元素',
+      done: selectedChars.length > 0,
+      active: themeReady && selectedChars.length === 0,
+    },
+    {
+      n: 3,
+      label: '给宝宝的寄语',
+      done: !!message.trim(),
+      active: selectedChars.length > 0 && !message.trim(),
+    },
     { n: 4, label: '生成', done: false, active: canGenerate },
   ]
 
   const toggleChar = (val: string) => {
     setSelectedChars(prev => {
       if (prev.includes(val)) return prev.filter(v => v !== val)
-      if (prev.length >= 2) return prev
+      if (prev.length >= MAX_PROTAGONISTS) return prev
       return [...prev, val]
     })
   }
@@ -93,10 +236,51 @@ export default function CustomStoryPage() {
     if (!label) return
     const newChar = { value: `custom-${Date.now()}`, label, emoji: '🌟' }
     setCustomChars(prev => [...prev, newChar])
-    setSelectedChars(prev => (prev.length < 2 ? [...prev, newChar.value] : prev))
+    setSelectedChars(prev => (prev.length < MAX_PROTAGONISTS ? [...prev, newChar.value] : prev))
     setCustomCharInput('')
     setShowCustomChar(false)
   }
+
+  const appendTodaySnippet = (snippet: string) => {
+    setTodayStoryText(prev => {
+      const t = prev.trim()
+      if (!t) return `${snippet}。`
+      if (prev.includes(snippet)) return prev
+      return `${prev.replace(/\s+$/, '')}\n${snippet}。`
+    })
+  }
+
+  const selectThemeNone = () => {
+    setTheme('none')
+    setShowCustomTheme(false)
+    setShowTodayStory(false)
+  }
+
+  const selectThemeToday = () => {
+    setTheme('today')
+    setShowTodayStory(true)
+    setShowCustomTheme(false)
+    setTodayStoryText(t => (t.trim() ? t : buildTodayStoryDefaultText(MEMBER_HOME_BABY_NAME)))
+  }
+
+  const selectThemePreset = (value: string) => {
+    setTheme(value)
+    setShowCustomTheme(false)
+    setShowTodayStory(false)
+  }
+
+  const selectThemeCustom = () => {
+    setShowCustomTheme(t => {
+      const next = !t
+      if (next) {
+        setTheme('custom')
+        setShowTodayStory(false)
+      }
+      return next
+    })
+  }
+
+  const isShortcutMessage = MESSAGE_SHORTCUTS.includes(message)
 
   const handleGenerate = () => {
     if (!canGenerate) return
@@ -113,20 +297,17 @@ export default function CustomStoryPage() {
         intervalRef.current = null
         timeoutRef.current = setTimeout(() => {
           setGenerating(false)
-          const charNames = selectedChars
-            .map(id => {
-              const baby = ALL_BABIES.find(b => b.id === id)
-              const extra = EXTRA_CHARACTERS.find(c => c.value === id)
-              const custom = customChars.find(c => c.value === id)
-              return baby?.name ?? extra?.label ?? custom?.label ?? ''
-            })
-            .filter(Boolean)
-            .join('和')
-          const storyTheme =
-            theme === 'custom' ? customTheme : THEME_OPTIONS.find(t => t.value === theme)?.label ?? ''
-          const storyTitle = `${charNames}的${storyTheme}`
+          const storyTitle = buildCompactStoryTitle(
+            selectedChars,
+            resolveCharLabel,
+            theme,
+            todayStoryText,
+            customTheme,
+          )
+          const themeSummary = buildPlayerThemeSummary(theme, todayStoryText, customTheme)
+          const charsShort = buildPlayerCharsShort(selectedChars, resolveCharLabel)
           router.push(
-            `/player/ai-story?title=${encodeURIComponent(storyTitle)}&chars=${encodeURIComponent(charNames)}&theme=${encodeURIComponent(storyTheme)}&msg=${encodeURIComponent(message)}`,
+            `/player/ai-story?title=${encodeURIComponent(storyTitle)}&chars=${encodeURIComponent(charsShort)}&theme=${encodeURIComponent(themeSummary)}&msg=${encodeURIComponent(message)}`,
           )
         }, 600)
       }
@@ -214,14 +395,23 @@ export default function CustomStoryPage() {
             <span>🎨</span> 选择故事主题
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={selectThemeToday}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium border-[1.5px] transition-all"
+              style={{
+                background: theme === 'today' ? 'linear-gradient(135deg,#7B3FD4,#E91E63)' : '#fff',
+                color: theme === 'today' ? '#fff' : '#6B5B8C',
+                borderColor: theme === 'today' ? 'transparent' : '#F0E8FF',
+                boxShadow: theme === 'today' ? '0 3px 12px rgba(155,63,212,0.28)' : 'none',
+              }}>
+              <span>📅</span> 今日故事
+            </button>
             {THEME_OPTIONS.map(opt => (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => {
-                  setTheme(opt.value)
-                  setShowCustomTheme(false)
-                }}
+                onClick={() => selectThemePreset(opt.value)}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium border-[1.5px] transition-all"
                 style={{
                   background: theme === opt.value ? 'linear-gradient(135deg,#7B3FD4,#E91E63)' : '#fff',
@@ -235,12 +425,7 @@ export default function CustomStoryPage() {
             ))}
             <button
               type="button"
-              onClick={() => {
-                setShowCustomTheme(t => {
-                  if (!t) setTheme('custom')
-                  return !t
-                })
-              }}
+              onClick={selectThemeCustom}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium border-[1.5px] transition-all"
               style={{
                 background: showCustomTheme ? '#FFF0F5' : '#fff',
@@ -249,7 +434,43 @@ export default function CustomStoryPage() {
               }}>
               <span>✏️</span> 其他
             </button>
+            <button
+              type="button"
+              onClick={selectThemeNone}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium border-[1.5px] transition-all"
+              style={{
+                background: theme === 'none' ? 'linear-gradient(135deg,#7B3FD4,#E91E63)' : '#fff',
+                color: theme === 'none' ? '#fff' : '#6B5B8C',
+                borderColor: theme === 'none' ? 'transparent' : '#F0E8FF',
+                boxShadow: theme === 'none' ? '0 3px 12px rgba(155,63,212,0.28)' : 'none',
+              }}>
+              <span>✨</span> 无主题
+            </button>
           </div>
+          {theme === 'today' && showTodayStory && (
+            <div className="mt-3 rounded-[16px] border border-[#F0E8FF] bg-white px-4 py-3">
+              <div className="mb-2 text-[11px] font-semibold text-[#B0A0C8]">今天发生了什么？可点选填入，也可自由修改</div>
+              <div className="mb-3 flex flex-wrap gap-2">
+                {TODAY_STORY_SNIPPETS.map(snippet => (
+                  <button
+                    key={snippet}
+                    type="button"
+                    onClick={() => appendTodaySnippet(snippet)}
+                    className="rounded-full border border-[#E8DEF8] bg-[#FBF7FF] px-3 py-1.5 text-[12px] font-medium text-[#6B5B8C] active:scale-[0.98]">
+                    {snippet}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={todayStoryText}
+                onChange={e => setTodayStoryText(e.target.value)}
+                placeholder="写下宝宝今天的故事…"
+                rows={4}
+                className="w-full resize-none rounded-[12px] border border-[#F0E8FF] bg-[#FFFBFE] p-3 text-[14px] leading-relaxed text-[#1A0A2E] outline-none"
+                style={{ fontFamily: 'inherit' }}
+              />
+            </div>
+          )}
           {showCustomTheme && (
             <div className="mt-3 bg-white border border-[#F0E8FF] rounded-[16px] px-4 py-3">
               <input
@@ -264,13 +485,13 @@ export default function CustomStoryPage() {
 
         <div className="mb-6">
           <div className="text-[15px] font-black text-[#1A0A2E] mb-1 flex items-center gap-1.5">
-            <span>🎭</span> 故事主角是谁？
+            <span>🎭</span> 故事里的元素
           </div>
-          <div className="text-[11px] text-[#B0A0C8] mb-3">最多选2个</div>
+          <div className="text-[11px] text-[#B0A0C8] mb-3">最多选{MAX_PROTAGONISTS}个（宝宝、兴趣或角色）</div>
           <div className="flex flex-wrap gap-2">
             {ALL_BABIES.map(baby => {
               const isSelected = selectedChars.includes(baby.id)
-              const isDisabled = !isSelected && selectedChars.length >= 2
+              const isDisabled = !isSelected && selectedChars.length >= MAX_PROTAGONISTS
               return (
                 <button
                   key={baby.id}
@@ -301,7 +522,7 @@ export default function CustomStoryPage() {
 
             {EXTRA_CHARACTERS.map(opt => {
               const isSelected = selectedChars.includes(opt.value)
-              const isDisabled = !isSelected && selectedChars.length >= 2
+              const isDisabled = !isSelected && selectedChars.length >= MAX_PROTAGONISTS
               return (
                 <button
                   key={opt.value}
@@ -324,7 +545,7 @@ export default function CustomStoryPage() {
 
             {customChars.map(opt => {
               const isSelected = selectedChars.includes(opt.value)
-              const isDisabled = !isSelected && selectedChars.length >= 2
+              const isDisabled = !isSelected && selectedChars.length >= MAX_PROTAGONISTS
               return (
                 <button
                   key={opt.value}
@@ -385,7 +606,7 @@ export default function CustomStoryPage() {
 
         <div className="mb-6">
           <div className="text-[15px] font-black text-[#1A0A2E] mb-3 flex items-center gap-1.5">
-            <span>💌</span> 加一句寄语
+            <span>💌</span> 给宝宝的寄语
             <span className="text-[11px] font-normal text-[#B0A0C8]">选填</span>
           </div>
           <div className="flex flex-wrap gap-2 mb-3">
@@ -393,23 +614,51 @@ export default function CustomStoryPage() {
               <button
                 key={s}
                 type="button"
-                onClick={() => setMessage(message === s ? '' : s)}
+                onClick={() => {
+                  setMessage(message === s ? '' : s)
+                  setMessageOtherActive(false)
+                }}
                 className="px-3 py-1.5 rounded-full text-[12px] border-[1.5px] transition-all"
                 style={{
-                  background: message === s ? '#FFF0F5' : '#fff',
-                  color: message === s ? '#E91E63' : '#888',
-                  borderColor: message === s ? '#F48FB1' : '#F0E8FF',
+                  background: message === s && !messageOtherActive ? '#FFF0F5' : '#fff',
+                  color: message === s && !messageOtherActive ? '#E91E63' : '#888',
+                  borderColor: message === s && !messageOtherActive ? '#F48FB1' : '#F0E8FF',
                 }}>
                 {s}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                setMessageOtherActive(true)
+                if (isShortcutMessage) setMessage('')
+              }}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] border-[1.5px] transition-all"
+              style={{
+                background: messageOtherActive || (!isShortcutMessage && message.trim() !== '') ? '#FFF0F5' : '#fff',
+                color: messageOtherActive || (!isShortcutMessage && message.trim() !== '') ? '#E91E63' : '#888',
+                borderColor: messageOtherActive || (!isShortcutMessage && message.trim() !== '') ? '#F48FB1' : '#F0E8FF',
+              }}>
+              <span>✏️</span> 其他
+            </button>
           </div>
-          <div className="bg-white border-[1.5px] border-[#F0E8FF] rounded-[16px] p-3">
+          <div
+            className="rounded-[16px] border-[1.5px] p-3"
+            style={{
+              borderColor: messageOtherActive ? '#F48FB1' : '#F0E8FF',
+              background: '#fff',
+              boxShadow: messageOtherActive ? '0 0 0 2px rgba(244,143,177,0.2)' : 'none',
+            }}>
             <textarea
               value={message}
-              onChange={e => setMessage(e.target.value)}
-              placeholder="或者自己写一句话…"
-              rows={2}
+              onChange={e => {
+                setMessage(e.target.value)
+                setMessageOtherActive(true)
+              }}
+              placeholder={
+                messageOtherActive ? '写下你想对宝宝说的话…' : '点选上方快捷语，或点「其他」后在此输入'
+              }
+              rows={3}
               className="w-full border-none outline-none resize-none text-[14px] text-[#1A0A2E] bg-transparent leading-relaxed"
               style={{ fontFamily: 'inherit' }}
             />
@@ -422,26 +671,25 @@ export default function CustomStoryPage() {
             className="rounded-[20px] p-4 mb-4 border border-[#F0E8FF]"
             style={{ background: 'linear-gradient(135deg,#EDE7F6,#FCE4EC)' }}>
             <div className="text-[11px] font-bold text-[#7B3FD4] mb-2">📖 故事预览</div>
-            <div className="text-[14px] text-[#1A0A2E] leading-relaxed">
-              一个关于
-              <span className="text-[#E91E63] font-bold">
-                {selectedChars.map(id => resolveCharLabel(id)).filter(Boolean).join('和')}
+            <div className="text-[13px] text-[#1A0A2E] mb-2">
+              <span className="text-[#B0A0C8]">故事题目：</span>
+              <span className="font-black text-[#E91E63] truncate inline-block max-w-full align-bottom">
+                {buildCompactStoryTitle(
+                  selectedChars,
+                  resolveCharLabel,
+                  theme,
+                  todayStoryText,
+                  customTheme,
+                )}
               </span>
-              的
-              <span className="text-[#E91E63] font-bold">
-                {theme === 'custom' ? customTheme : THEME_OPTIONS.find(t => t.value === theme)?.label}
-              </span>
-              故事。
-              {message && (
-                <>
-                  结尾寄语：「
-                  <span className="text-[#E91E63] font-bold">
-                    {message.slice(0, 15)}
-                    {message.length > 15 ? '…' : ''}
-                  </span>
-                  」
-                </>
-              )}
+            </div>
+            <div className="text-[12px] text-[#6B5B8C] leading-snug line-clamp-2">
+              {theme === 'today'
+                ? `围绕：${buildPlayerThemeSummary(theme, todayStoryText, customTheme)}，结合所选元素展开。`
+                : theme === 'none'
+                  ? '无固定主题，围绕所选元素自由发挥。'
+                  : `主题：${buildPlayerThemeSummary(theme, todayStoryText, customTheme)}。`}
+              {message ? ` 寄语已选。` : ''}
             </div>
           </div>
         )}
@@ -461,7 +709,7 @@ export default function CustomStoryPage() {
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
           </svg>
-          {canGenerate ? '立即生成专属故事' : '请先选择主题和主角'}
+          {canGenerate ? '立即生成专属故事' : '请先选择主题和故事元素'}
         </button>
       </div>
 
@@ -478,18 +726,8 @@ export default function CustomStoryPage() {
               ✨
             </div>
             <div className="text-[17px] font-black text-[#1A0A2E] mb-2">正在生成故事中…</div>
-            <div className="text-[13px] text-[#6B5B8C] mb-5">
-              AI正在为
-              {selectedChars
-                .map(id => {
-                  const baby = ALL_BABIES.find(b => b.id === id)
-                  const extra = EXTRA_CHARACTERS.find(c => c.value === id)
-                  const custom = customChars.find(c => c.value === id)
-                  return baby?.name ?? extra?.label ?? custom?.label ?? ''
-                })
-                .filter(Boolean)
-                .join('和')}
-              创作专属故事
+            <div className="text-[13px] text-[#6B5B8C] mb-5 line-clamp-2 px-1">
+              AI正在为「{buildPlayerCharsShort(selectedChars, resolveCharLabel)}」创作专属故事
             </div>
             <div className="h-1.5 bg-[#F0E8FF] rounded-full overflow-hidden">
               <div
@@ -503,5 +741,16 @@ export default function CustomStoryPage() {
 
       <style>{`@keyframes custom-story-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
+  )
+}
+
+export default function CustomStoryPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="phone-shell relative flex min-h-[50vh] flex-col bg-[#FBF7FF]" aria-hidden />
+      }>
+      <CustomStoryPageInner />
+    </Suspense>
   )
 }
