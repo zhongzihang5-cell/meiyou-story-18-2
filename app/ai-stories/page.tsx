@@ -229,7 +229,7 @@ export default function AIQinShengLandingPage() {
             <p
               className="mt-2 max-w-[300px] text-center text-[13px] leading-relaxed"
               style={{ fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>
-              录下你的声音，今晚AI帮你给柚柚讲故事
+              克隆你的声音，今晚AI帮你给柚柚讲故事
             </p>
           </div>
 
@@ -249,7 +249,7 @@ export default function AIQinShengLandingPage() {
               onClick={() => router.push('/ai-stories/benefits')}
               className="mt-3 border-0 bg-transparent p-0 text-[12px] leading-normal underline decoration-[rgba(255,255,255,0.2)] underline-offset-[4px] active:opacity-70"
               style={{ color: 'rgba(255,255,255,0.3)' }}>
-              了解功能权益
+              了解功能详情
             </button>
           </div>
         </div>
