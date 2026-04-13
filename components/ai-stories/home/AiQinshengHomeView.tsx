@@ -481,43 +481,33 @@ export default function AiQinshengHomeView() {
           <Divider />
 
           {/* 2.6 声音册 */}
-          <div className="mb-2.5 flex items-center justify-between" style={{ marginBottom: 10 }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#1A1A1A' }}>声音册</span>
-            <button
-              type="button"
-              onClick={() => router.push('/my-voices')}
-              className="flex items-center border-0 bg-transparent p-0 active:opacity-70"
-              aria-label="声音册详情">
-              <span
-                style={{
-                  background: '#E8F9F0',
-                  color: '#059669',
-                  borderRadius: 20,
-                  padding: '2px 9px',
-                  fontSize: 10,
-                  fontWeight: 500,
-                }}>
-                安睡 {MEMBER_HOME_SLEEP_COUNT} 次
-              </span>
-              <span className="ml-[5px]" style={{ color: '#CCCCCC', fontSize: 14 }}>
-                ›
-              </span>
-            </button>
-          </div>
-
+          <SectionHeader
+            title="声音册"
+            right={
+              <button
+                type="button"
+                onClick={() => router.push('/my-voices')}
+                className="border-0 bg-transparent p-0"
+                style={{ fontSize: 12, color: '#8B5CF6' }}>
+                声音管理 ›
+              </button>
+            }
+          />
           <div className="flex flex-wrap" style={{ gap: 8, marginBottom: 14 }}>
             {(
               [
                 <>
-                  共{' '}
-                  <span style={{ color: '#1A1A1A', fontWeight: 600 }}>{MEMBER_HOME_VOICE_STATS.storyCount}</span>{' '}
-                  个故事
+                  安睡
+                  <span style={{ color: '#1A1A1A', fontWeight: 600 }}>{MEMBER_HOME_SLEEP_COUNT}次</span>
                 </>,
                 <>
-                  <span style={{ color: '#1A1A1A', fontWeight: 600 }}>{MEMBER_HOME_VOICE_STATS.voiceKinds}</span> 种声音
+                  <span style={{ color: '#1A1A1A', fontWeight: 600 }}>{MEMBER_HOME_VOICE_STATS.storyCount}</span>个故事
                 </>,
                 <>
-                  总时长{' '}
+                  <span style={{ color: '#1A1A1A', fontWeight: 600 }}>{MEMBER_HOME_VOICE_STATS.voiceKinds}</span>种声音
+                </>,
+                <>
+                  总时长
                   <span style={{ color: '#1A1A1A', fontWeight: 600 }}>{MEMBER_HOME_VOICE_STATS.totalMinutes}</span>分
                 </>,
               ] as const
