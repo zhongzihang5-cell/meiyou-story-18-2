@@ -74,6 +74,12 @@ export const MEMBER_HOME_INTEREST_TAGS = [
   { value: 'interest-lion', label: '小狮子', emoji: '🦁' },
   { value: 'interest-strawberry', label: '草莓', emoji: '🍓' },
   { value: 'interest-garbage-truck', label: '垃圾车', emoji: '🚛' },
+  { value: 'interest-moon', label: '月亮', emoji: '🌙' },
+  { value: 'interest-dinosaur', label: '恐龙', emoji: '🦖' },
+  { value: 'interest-rabbit', label: '小兔子', emoji: '🐰' },
+  { value: 'interest-ocean', label: '海底世界', emoji: '🐳' },
+  { value: 'interest-train', label: '小火车', emoji: '🚂' },
+  { value: 'interest-princess', label: '公主城堡', emoji: '👑' },
 ] as const
 
 export type MemberHomeInterestTag = (typeof MEMBER_HOME_INTEREST_TAGS)[number]

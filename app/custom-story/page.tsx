@@ -16,6 +16,7 @@ const ALL_BABIES = [
   { id: '2', name: '多多', emoji: '👦', age: '4岁1个月' },
   { id: '3', name: '小宝', emoji: '👶', age: '8个月' },
 ]
+const DEFAULT_BABY_ID = ALL_BABIES[0].id
 
 const THEME_OPTIONS = [
   { value: 'sleep', label: '睡前故事', emoji: '🌙' },
@@ -178,10 +179,16 @@ function CustomStoryPageInner() {
 
   useEffect(() => {
     const raw = searchParams.get('interests')
-    if (!raw?.trim()) return
-    const ids = raw.split(',').map(s => s.trim()).filter(Boolean)
-    const picked = ids.filter(id => MEMBER_HOME_INTEREST_VALUES.has(id)).slice(0, MAX_PROTAGONISTS)
-    if (picked.length > 0) setSelectedChars(picked)
+    const picked: string[] = [DEFAULT_BABY_ID]
+    if (raw?.trim()) {
+      const ids = raw.split(',').map(s => s.trim()).filter(Boolean)
+      ids
+        .filter(id => MEMBER_HOME_INTEREST_VALUES.has(id))
+        .forEach(id => {
+          if (picked.length < MAX_PROTAGONISTS && !picked.includes(id)) picked.push(id)
+        })
+    }
+    setSelectedChars(picked.slice(0, MAX_PROTAGONISTS))
   }, [searchParams])
 
   useEffect(() => {
@@ -200,20 +207,9 @@ function CustomStoryPageInner() {
   const canGenerate = themeReady && selectedChars.length > 0
 
   const steps = [
-    { n: 1, label: '选主题', done: themeReady, active: !themeReady },
-    {
-      n: 2,
-      label: '选元素',
-      done: selectedChars.length > 0,
-      active: themeReady && selectedChars.length === 0,
-    },
-    {
-      n: 3,
-      label: '给宝宝的寄语',
-      done: !!message.trim(),
-      active: selectedChars.length > 0 && !message.trim(),
-    },
-    { n: 4, label: '生成', done: false, active: canGenerate },
+    { n: 1, label: '选元素', done: selectedChars.length > 0, active: selectedChars.length === 0 },
+    { n: 2, label: '选主题', done: themeReady, active: selectedChars.length > 0 && !themeReady },
+    { n: 3, label: '给寄语', done: !!message.trim(), active: selectedChars.length > 0 && themeReady && !message.trim() },
   ]
 
   const toggleChar = (val: string) => {
@@ -333,49 +329,56 @@ function CustomStoryPageInner() {
         <div className="w-full text-center text-[17px] font-black text-[#1A0A2E]">✨ 定制专属故事</div>
       </div>
 
-      <div className="flex items-center justify-center px-6 pb-4 flex-shrink-0">
-        {steps.map((step, i) => (
-          <div key={step.n} className="flex items-center" style={{ flex: i < 3 ? 1 : 'none' }}>
-            <div className="flex flex-col items-center gap-1">
-              <div
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold transition-all"
-                style={{
-                  background: step.done
-                    ? 'linear-gradient(135deg,#7B3FD4,#E91E63)'
-                    : step.active
-                      ? '#7B3FD4'
-                      : '#F0E8FF',
-                  color: step.done || step.active ? '#fff' : '#B0A0C8',
-                  boxShadow: step.active ? '0 0 0 3px #EDE7F6' : 'none',
-                }}>
-                {step.done ? '✓' : step.n}
+      <div className="step-bar flex-shrink-0">
+        {steps.map((step, i) => {
+          const stepClass = step.done ? 'done' : step.active ? 'active' : ''
+          const arrowColor = step.done ? '#A855F7' : 'rgba(168,85,247,0.35)'
+          return (
+            <div key={step.n} className="contents">
+              <div className={`step-item ${stepClass}`}>
+                <div className="step-icon">
+                  {step.done ? (
+                    <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden>
+                      <path
+                        d="M2 5.5l2.5 2.5 4.5-4.5"
+                        stroke="white"
+                        strokeWidth="1.6"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : (
+                    <span className="step-num-circle">{step.n}</span>
+                  )}
+                </div>
+                <div className="step-text">
+                  <div className="step-num">步骤 {step.n}</div>
+                  <div className="step-label">{step.label}</div>
+                </div>
               </div>
-              <div
-                className="text-[10px] whitespace-nowrap"
-                style={{
-                  color: step.active ? '#7B3FD4' : step.done ? '#4CAF50' : '#B0A0C8',
-                  fontWeight: step.active ? 700 : 400,
-                }}>
-                {step.label}
-              </div>
+
+              {i < 2 && (
+                <svg className="step-arrow" width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+                  <path
+                    d="M5 3l4 4-4 4"
+                    stroke={arrowColor}
+                    strokeWidth="1.5"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
             </div>
-            {i < 3 && (
-              <div
-                className="h-[2px] mx-1 rounded-full transition-all"
-                style={{
-                  width: 32,
-                  background: step.done ? 'linear-gradient(90deg,#7B3FD4,#E91E63)' : '#F0E8FF',
-                }}
-              />
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 px-4 pb-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto no-scrollbar px-4 pb-4">
         <div
           className="bg-white rounded-[18px] border border-[#F0E8FF] p-4 mb-6"
-          style={{ boxShadow: '0 2px 12px rgba(123,63,212,0.06)' }}>
+          style={{ order: 0, boxShadow: '0 2px 12px rgba(123,63,212,0.06)' }}>
           <div className="text-[12px] text-[#B0A0C8] mb-3 font-semibold">我的宝宝</div>
           <div className="flex items-center gap-3">
             <div
@@ -390,7 +393,7 @@ function CustomStoryPageInner() {
           </div>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6" style={{ order: 2 }}>
           <div className="text-[15px] font-black text-[#1A0A2E] mb-3 flex items-center gap-1.5">
             <span>🎨</span> 选择故事主题
           </div>
@@ -483,7 +486,7 @@ function CustomStoryPageInner() {
           )}
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6" style={{ order: 1 }}>
           <div className="text-[15px] font-black text-[#1A0A2E] mb-1 flex items-center gap-1.5">
             <span>🎭</span> 故事里的元素
           </div>
@@ -604,7 +607,7 @@ function CustomStoryPageInner() {
           </div>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6" style={{ order: 3 }}>
           <div className="text-[15px] font-black text-[#1A0A2E] mb-3 flex items-center gap-1.5">
             <span>💌</span> 给宝宝的寄语
             <span className="text-[11px] font-normal text-[#B0A0C8]">选填</span>
@@ -669,7 +672,7 @@ function CustomStoryPageInner() {
         {canGenerate && (
           <div
             className="rounded-[20px] p-4 mb-4 border border-[#F0E8FF]"
-            style={{ background: 'linear-gradient(135deg,#EDE7F6,#FCE4EC)' }}>
+            style={{ order: 4, background: 'linear-gradient(135deg,#EDE7F6,#FCE4EC)' }}>
             <div className="text-[11px] font-bold text-[#7B3FD4] mb-2">📖 故事预览</div>
             <div className="text-[13px] text-[#1A0A2E] mb-2">
               <span className="text-[#B0A0C8]">故事题目：</span>
@@ -709,7 +712,7 @@ function CustomStoryPageInner() {
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
           </svg>
-          {canGenerate ? '立即生成专属故事' : '请先选择主题和故事元素'}
+          {canGenerate ? '立即生成专属故事' : '请先选择故事元素和主题'}
         </button>
       </div>
 
@@ -739,7 +742,87 @@ function CustomStoryPageInner() {
         </div>
       )}
 
-      <style>{`@keyframes custom-story-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes custom-story-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .step-bar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 16px 14px;
+          background: #F5F0FF;
+        }
+
+        .step-item {
+          flex: 1;
+          background: rgba(168,85,247,0.08);
+          border: 1px solid rgba(168,85,247,0.15);
+          border-radius: 12px;
+          padding: 10px 12px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .step-item.done,
+        .step-item.active {
+          background: linear-gradient(135deg, #7C3AED, #A855F7);
+          border-color: transparent;
+        }
+
+        .step-icon {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.25);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .step-item:not(.done):not(.active) .step-icon {
+          background: rgba(168,85,247,0.12);
+        }
+
+        .step-num-circle {
+          font-size: 11px;
+          font-weight: 700;
+          color: #fff;
+        }
+
+        .step-item:not(.done):not(.active) .step-num-circle {
+          color: rgba(124,58,237,0.4);
+        }
+
+        .step-num {
+          font-size: 9px;
+          color: rgba(255,255,255,0.7);
+          font-weight: 500;
+          line-height: 1;
+        }
+
+        .step-item:not(.done):not(.active) .step-num {
+          color: rgba(124,58,237,0.35);
+        }
+
+        .step-label {
+          font-size: 12px;
+          font-weight: 700;
+          color: #fff;
+          margin-top: 2px;
+          line-height: 1;
+        }
+
+        .step-item:not(.done):not(.active) .step-label {
+          color: rgba(124,58,237,0.4);
+          font-size: 11px;
+        }
+
+        .step-arrow {
+          flex-shrink: 0;
+        }
+      `}</style>
     </div>
   )
 }

@@ -29,7 +29,7 @@ import {
 
 /**
  * 孕育首页壳：布局参考美柚，图标统一用 Lucide。
- * 「儿歌故事」→ /featured；「AI亲声讲」→ /ai-stories（落地页），故事库 → /ai-stories/browse
+ * 「儿歌故事」→ /featured；「AI亲声讲」→ /ai-stories/home（会员首页），故事库 → /ai-stories/browse
  */
 
 const MEIYOU_PINK = '#FF5A7A'
@@ -39,7 +39,7 @@ const GRID: { label: string; href?: string; icon: LucideIcon; bg: string; custom
   { label: '喂养记录', icon: Milk, bg: 'linear-gradient(145deg,#FBBF24,#F59E0B)' },
   { label: '在家早教', icon: BookOpen, bg: 'linear-gradient(145deg,#A78BFA,#7C3AED)' },
   { label: '儿歌故事', icon: Music, bg: 'linear-gradient(145deg,#FB923C,#EA580C)', href: '/featured' },
-  { label: 'AI亲声讲', icon: Sparkles, bg: 'linear-gradient(145deg,#7B3FD4,#E91E63)', href: '/ai-stories', customIcon: true },
+  { label: 'AI亲声讲', icon: Sparkles, bg: 'linear-gradient(145deg,#7B3FD4,#E91E63)', href: '/ai-stories/home', customIcon: true },
   { label: '收起', icon: ChevronUp, bg: 'linear-gradient(145deg,#E2E8F0,#94A3B8)' },
   { label: '洗沐护理', icon: Bath, bg: 'linear-gradient(145deg,#38BDF8,#0284C7)' },
   { label: '抖音好物', icon: ShoppingBag, bg: 'linear-gradient(145deg,#FB7185,#E11D48)' },

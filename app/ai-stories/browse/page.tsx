@@ -1,6 +1,6 @@
 'use client'
 import { Suspense, useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AGE_OPTIONS, getStoriesByFilter } from '@/lib/mockData'
 import type { AgeGroup, Category, Story } from '@/lib/mockData'
@@ -109,9 +109,7 @@ function LockBadge({ className }: { className?: string }) {
 
 function AIStoriesBrowsePageInner() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const browseBackHref =
-    searchParams.get('from') === 'ai-stories-home' ? '/ai-stories/home' : '/ai-stories'
+  const browseBackHref = '/ai-stories/home'
   const [ageFilter, setAgeFilter] = useState<AgeGroup | undefined>('L1' as AgeGroup)
   const [showPaywall, setShowPaywall] = useState(false)
   const [favorites, setFavorites] = useState<FavoriteItem[]>([])

@@ -2,30 +2,23 @@
 
 /**
  * 录制流：进度条、对话流、按住录音；每段录完只追加一条系统说明。
- * 视觉与真实录音逻辑对齐美柚 voice-clone（浅色紫粉 + MediaRecorder）。
+ * 视觉与真实录音逻辑对齐美柚 voice-clone（浅色紫粉 + MediaRecorder）；首段即为朗读句，无单独嘘嘘声环节。
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { QinshengMicVisual } from '@/components/ai-stories/QinshengMicVisual'
 
-/** 与 qinsheng RECORD_LINES 一致 + 首段哄睡提示 */
+/** 开场说明（已无单独「嘘嘘声」环节，直接进入朗读句） */
 export const VOICE_RECORD_INTRO_SYS =
-  '柚柚快要睡觉了吗？\n\n先录一段你平时哄柚柚睡觉的声音——嘘嘘声、哼唱都可以。柚柚<em>今晚就能听到你</em>。'
-
-export const VOICE_RECORD_AFTER_HUSH_SYS =
-  '很好！声音录下来了，柚柚今晚就可以听到 🌙\n\n现在来读几句话，让AI<em>记住你声音的样子</em>。'
-
-export const VOICE_RECORD_HUSH_HINT = '（录一段嘘嘘声或哼唱）'
+  '下面请轻声朗读3句话，1分钟内就能完成。\n\nAI会快速记住你的声音，柚柚<em>今晚就能听到你</em>讲故事。'
 
 export const VOICE_RECORD_SCRIPT: string[] = [
-  '嘘——柚柚乖，妈妈在呢，\n闭上眼睛睡觉觉……',
+  '柚柚乖，妈妈在呢，\n我们一起听故事，慢慢进入梦乡。',
   '月亮出来了，星星也出来了，\n柚柚闭上眼睛，做个好梦吧。',
   '从前有一只小兔子，住在森林里的一棵大树下，\n每天晚上它都会数着星星入睡。',
-  '柚柚最勇敢了，今天辛苦啦，\n快快闭上眼睛，明天又是新的一天。',
-  '小鸟回巢了，小鱼回家了，\n柚柚也要睡觉觉，做个甜甜的梦。',
 ]
 
-export const VOICE_RECORD_TOTAL_SEGMENTS = 1 + VOICE_RECORD_SCRIPT.length
+export const VOICE_RECORD_TOTAL_SEGMENTS = VOICE_RECORD_SCRIPT.length
 
 /** 朗读卡「第 N 句」条与正文区底色区分；按句序轮换 */
 const READ_CARD_THEMES = [
@@ -225,12 +218,7 @@ export default function RecordScreenFlow({
           clearStagedTimers()
           setRecordedBlobs(prev => ({ ...prev, [idx]: url }))
           const nextLine = idx + 1
-          const sysText =
-            nextLine < totalLines
-              ? nextLine === 1
-                ? `哄睡声录好啦～\n\n${VOICE_RECORD_AFTER_HUSH_SYS}`
-                : '很好，继续读下一句'
-              : null
+          const sysText = nextLine < totalLines ? '很好，继续读下一句' : null
 
           // 1) 先出现「已录制」
           setChat(prev => [...prev, { type: 'user', segmentIndex: idx }])
@@ -363,16 +351,15 @@ export default function RecordScreenFlow({
     return 'empty'
   })
 
-  /** 首段为哄睡；之后每段文案前加「第 N 句」（第一段正文为第 2 句） */
-  const displayLines =
-    currentLine === 0
-      ? [VOICE_RECORD_HUSH_HINT]
-      : [`第 ${currentLine + 1} 句`, VOICE_RECORD_SCRIPT[currentLine - 1] ?? '']
+  /** 每段文案为朗读脚本一行，标题「第 N 句」 */
+  const displayLines: [string, string] = [
+    `第 ${currentLine + 1} 句`,
+    VOICE_RECORD_SCRIPT[currentLine] ?? '',
+  ]
 
   const isRecording = recordingLine === currentLine && recordingLine !== null
   const waveHeights = [7, 13, 22, 31, 25, 37, 29, 35, 27, 33, 21, 15, 8]
-  const readCardTheme =
-    currentLine > 0 ? READ_CARD_THEMES[(currentLine - 1) % READ_CARD_THEMES.length] : null
+  const readCardTheme = READ_CARD_THEMES[currentLine % READ_CARD_THEMES.length]
 
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${className}`.trim()}>
@@ -443,38 +430,23 @@ export default function RecordScreenFlow({
       <div className="shrink-0 border-t border-[#EDE4F5] bg-[#FBF7FF] pt-3 shadow-[0_-8px_24px_rgba(123,63,212,0.06)]">
         <div className="mb-3 max-h-[40vh] overflow-y-auto no-scrollbar">
           <div className="overflow-hidden rounded-[16px] border border-[#E4D8F4] text-center shadow-[0_2px_12px_rgba(123,63,212,0.06)]">
-            {currentLine === 0 ? (
-              <div className="bg-[#EDE9FE] px-3.5 py-3.5">
-                <p className="text-[14px] font-normal leading-[1.8] text-[#5B4A7A]">
-                  {displayLines[0].split('\n').map((l, j, arr) => (
-                    <span key={j}>
-                      {l}
-                      {j < arr.length - 1 && <br />}
-                    </span>
-                  ))}
-                </p>
+            <>
+              <div
+                className="px-3 py-2.5 text-[14px] font-semibold leading-snug"
+                style={{ background: readCardTheme.labelBg, color: readCardTheme.labelText }}>
+                {displayLines[0]}
               </div>
-            ) : (
-              readCardTheme && (
-                <>
-                  <div
-                    className="px-3 py-2.5 text-[14px] font-semibold leading-snug"
-                    style={{ background: readCardTheme.labelBg, color: readCardTheme.labelText }}>
-                    {displayLines[0]}
-                  </div>
-                  <div
-                    className="px-3.5 py-3 text-left text-[14px] font-semibold leading-[1.8]"
-                    style={{ background: readCardTheme.scriptBg, color: readCardTheme.scriptText }}>
-                    {displayLines[1].split('\n').map((l, j, arr) => (
-                      <span key={j}>
-                        {l}
-                        {j < arr.length - 1 && <br />}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              )
-            )}
+              <div
+                className="px-3.5 py-3 text-left text-[14px] font-semibold leading-[1.8]"
+                style={{ background: readCardTheme.scriptBg, color: readCardTheme.scriptText }}>
+                {displayLines[1].split('\n').map((l, j, arr) => (
+                  <span key={j}>
+                    {l}
+                    {j < arr.length - 1 && <br />}
+                  </span>
+                ))}
+              </div>
+            </>
           </div>
         </div>
 

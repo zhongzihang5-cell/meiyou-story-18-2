@@ -68,7 +68,7 @@ export default function AIStoriesBenefitsPage() {
         <div className="relative flex h-12 flex-shrink-0 items-center justify-center px-4">
           <button
             type="button"
-            onClick={() => router.push('/ai-stories')}
+            onClick={() => router.push('/ai-stories/home')}
             className="absolute left-1 flex h-9 w-9 items-center justify-center active:opacity-60"
             style={{ color: 'rgba(255,255,255,0.6)' }}
             aria-label="返回">

@@ -118,7 +118,7 @@ function VoiceCloneContent() {
         router.push('/my-voices')
         return
       }
-      router.push('/ai-stories')
+      router.push('/ai-stories/home')
       return
     }
     if (step === 'processing' || step === 'done') {

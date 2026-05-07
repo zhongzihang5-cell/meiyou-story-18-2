@@ -376,7 +376,7 @@ function PlayerContent({ id }: { id: string }) {
               ))}
             </div>
             <button onClick={() => { setShowVipSheet(false); router.push('/voice-clone') }} className="w-full h-[52px] rounded-full text-white font-extrabold text-[15px] mb-3" style={{ background:'linear-gradient(135deg,#7B3FD4,#E91E63)' }}>
-              开通会员克隆声音
+              克隆声音试听30秒
             </button>
             <button onClick={() => setShowVipSheet(false)} className="w-full h-10 text-[#B0A0C8] text-[13px]">暂不开通</button>
           </div>
