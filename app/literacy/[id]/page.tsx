@@ -1,5 +1,10 @@
 import { Suspense } from 'react'
+import { literacyStaticParams } from '@/lib/staticExportParams'
 import { LiteracyCardClient } from './LiteracyCardClient'
+
+export function generateStaticParams() {
+  return literacyStaticParams()
+}
 
 function LiteracyFallback() {
   return (
